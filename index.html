@@ -72,73 +72,55 @@ Loading World...
 
 import * as THREE from "three";
 
-const scene=new THREE.Scene();
+const scene = new THREE.Scene();
 
-scene.background=new THREE.Color(0x87ceeb);
+scene.background = new THREE.Color(0x87ceeb);
 
-const camera=new THREE.PerspectiveCamera(
-75,
-window.innerWidth/window.innerHeight,
-0.1,
-2000
+const camera = new THREE.PerspectiveCamera(
+    75,
+    window.innerWidth / window.innerHeight,
+    0.1,
+    2000
 );
 
-const renderer=new THREE.WebGLRenderer({
-antialias:true
+const renderer = new THREE.WebGLRenderer({
+    antialias: true
 });
 
-renderer.setSize(window.innerWidth,window.innerHeight);
-
-renderer.shadowMap.enabled=true;
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
 
 document.body.appendChild(renderer.domElement);
 
-// هنا سنكمل إنشاء العالم في الجزء الثاني
-
-</scrip>
 // =========================
 // الإضاءة
 // =========================
 
-const ambientLight = new THREE.AmbientLight(0xffffff,1);
+const ambientLight = new THREE.AmbientLight(0xffffff, 1);
 scene.add(ambientLight);
 
-const sun = new THREE.DirectionalLight(0xffffff,2);
-
-sun.position.set(120,200,100);
-
-sun.castShadow=true;
-
-sun.shadow.mapSize.width=2048;
-sun.shadow.mapSize.height=2048;
-
+const sun = new THREE.DirectionalLight(0xffffff, 2);
+sun.position.set(120, 200, 100);
+sun.castShadow = true;
+sun.shadow.mapSize.width = 2048;
+sun.shadow.mapSize.height = 2048;
 scene.add(sun);
 
 // =========================
 // الضباب
 // =========================
 
-scene.fog = new THREE.Fog(0x87ceeb,80,450);
+scene.fog = new THREE.Fog(0x87ceeb, 80, 450);
 
 // =========================
 // الأرض
 // =========================
 
-const groundGeometry = new THREE.PlaneGeometry(1000,1000);
-
-const groundMaterial = new THREE.MeshStandardMaterial({
-    color:0x3f9b3f
-});
-
-const ground = new THREE.Mesh(
-    groundGeometry,
-    groundMaterial
-);
-
-ground.rotation.x = -Math.PI/2;
-
+const groundGeometry = new THREE.PlaneGeometry(1000, 1000);
+const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x3f9b3f });
+const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
-
 scene.add(ground);
 
 // =========================
@@ -146,1640 +128,657 @@ scene.add(ground);
 // =========================
 
 const player = new THREE.Mesh(
-
-new THREE.BoxGeometry(2,4,2),
-
-new THREE.MeshStandardMaterial({
-    color:0x2196f3
-})
-
+    new THREE.BoxGeometry(2, 4, 2),
+    new THREE.MeshStandardMaterial({ color: 0x2196f3 })
 );
-
-player.position.y=2;
-
-player.castShadow=true;
-
+player.position.y = 2;
+player.castShadow = true;
 scene.add(player);
 
 // =========================
 // الكاميرا
 // =========================
 
-camera.position.set(0,8,15);
-
+camera.position.set(0, 8, 15);
 camera.lookAt(player.position);
-
-// =========================
-// تحديث الكاميرا
-// =========================
 
 function updateCamera(){
-
-camera.position.x = player.position.x;
-
-camera.position.z = player.position.z + 15;
-
-camera.position.y = player.position.y + 8;
-
-camera.lookAt(player.position);
-
+    camera.position.x = player.position.x;
+    camera.position.z = player.position.z + 15;
+    camera.position.y = player.position.y + 8;
+    camera.lookAt(player.position);
 }
-   // =========================
+
+// =========================
 // متغيرات الحركة
 // =========================
 
 const keys = {
-    forward:false,
-    backward:false,
-    left:false,
-    right:false
+    forward: false,
+    backward: false,
+    left: false,
+    right: false
 };
 
-const speed = 0.25;
+let speed = 0.25;
 
-// لوحة المفاتيح
-
-window.addEventListener("keydown",(e)=>{
-
-if(e.key==="w"||e.key==="ArrowUp") keys.forward=true;
-
-if(e.key==="s"||e.key==="ArrowDown") keys.backward=true;
-
-if(e.key==="a"||e.key==="ArrowLeft") keys.left=true;
-
-if(e.key==="d"||e.key==="ArrowRight") keys.right=true;
-
+window.addEventListener("keydown", (e) => {
+    if(e.key === "w" || e.key === "ArrowUp") keys.forward = true;
+    if(e.key === "s" || e.key === "ArrowDown") keys.backward = true;
+    if(e.key === "a" || e.key === "ArrowLeft") keys.left = true;
+    if(e.key === "d" || e.key === "ArrowRight") keys.right = true;
 });
 
-window.addEventListener("keyup",(e)=>{
-
-if(e.key==="w"||e.key==="ArrowUp") keys.forward=false;
-
-if(e.key==="s"||e.key==="ArrowDown") keys.backward=false;
-
-if(e.key==="a"||e.key==="ArrowLeft") keys.left=false;
-
-if(e.key==="d"||e.key==="ArrowRight") keys.right=false;
-
+window.addEventListener("keyup", (e) => {
+    if(e.key === "w" || e.key === "ArrowUp") keys.forward = false;
+    if(e.key === "s" || e.key === "ArrowDown") keys.backward = false;
+    if(e.key === "a" || e.key === "ArrowLeft") keys.left = false;
+    if(e.key === "d" || e.key === "ArrowRight") keys.right = false;
 });
 
 // =========================
 // أشجار تلقائية
 // =========================
 
-function createTree(x,z){
+function createTree(x, z){
+    const trunk = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.4, 0.6, 3, 8),
+        new THREE.MeshStandardMaterial({ color: 0x7b4a12 })
+    );
+    trunk.position.set(x, 1.5, z);
+    trunk.castShadow = true;
+    scene.add(trunk);
 
-const trunk=new THREE.Mesh(
-
-new THREE.CylinderGeometry(0.4,0.6,3,8),
-
-new THREE.MeshStandardMaterial({
-color:0x7b4a12
-})
-
-);
-
-trunk.position.set(x,1.5,z);
-
-trunk.castShadow=true;
-
-scene.add(trunk);
-
-const leaves=new THREE.Mesh(
-
-new THREE.SphereGeometry(2,16,16),
-
-new THREE.MeshStandardMaterial({
-color:0x228B22
-})
-
-);
-
-leaves.position.set(x,4.5,z);
-
-leaves.castShadow=true;
-
-scene.add(leaves);
-
+    const leaves = new THREE.Mesh(
+        new THREE.SphereGeometry(2, 16, 16),
+        new THREE.MeshStandardMaterial({ color: 0x228B22 })
+    );
+    leaves.position.set(x, 4.5, z);
+    leaves.castShadow = true;
+    scene.add(leaves);
 }
 
-for(let i=0;i<120;i++){
-
-const x=(Math.random()-0.5)*900;
-
-const z=(Math.random()-0.5)*900;
-
-createTree(x,z);
-
+for(let i = 0; i < 120; i++){
+    const x = (Math.random() - 0.5) * 900;
+    const z = (Math.random() - 0.5) * 900;
+    createTree(x, z);
 }
 
 // =========================
 // صخور
 // =========================
 
-for(let i=0;i<80;i++){
-
-const rock=new THREE.Mesh(
-
-new THREE.DodecahedronGeometry(
-Math.random()*1.5+0.5
-),
-
-new THREE.MeshStandardMaterial({
-color:0x888888
-})
-
-);
-
-rock.position.set(
-
-(Math.random()-0.5)*900,
-
-1,
-
-(Math.random()-0.5)*900
-
-);
-
-rock.castShadow=true;
-
-scene.add(rock);
-
+for(let i = 0; i < 80; i++){
+    const rock = new THREE.Mesh(
+        new THREE.DodecahedronGeometry(Math.random() * 1.5 + 0.5),
+        new THREE.MeshStandardMaterial({ color: 0x888888 })
+    );
+    rock.position.set(
+        (Math.random() - 0.5) * 900,
+        1,
+        (Math.random() - 0.5) * 900
+    );
+    rock.castShadow = true;
+    scene.add(rock);
 }
 
 // =========================
-// الحلقة الرئيسية
-// =========================
-
-function animate(){
-
-requestAnimationFrame(animate);
-
-if(keys.forward) player.position.z-=speed;
-
-if(keys.backward) player.position.z+=speed;
-
-if(keys.left) player.position.x-=speed;
-
-if(keys.right) player.position.x+=speed;
-
-updateCamera();
-
-renderer.render(scene,camera);
-
-}
-
-animate();
-
-document.getElementById("loading").style.display="none";
-
-window.addEventListener("resize",()=>{
-
-camera.aspect=window.innerWidth/window.innerHeight;
-
-camera.updateProjectionMatrix();
-
-renderer.setSize(window.innerWidth,window.innerHeight);
-
-});
- // =========================
 // التحكم بحركة الهاتف
 // =========================
 
 let gyroEnabled = false;
 
 function enableGyroscope(){
-
-if(typeof DeviceOrientationEvent!=="undefined"
-&&
-typeof DeviceOrientationEvent.requestPermission==="function"){
-
-DeviceOrientationEvent.requestPermission().then(result=>{
-
-if(result==="granted"){
-
-gyroEnabled=true;
-
+    if(typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function"){
+        DeviceOrientationEvent.requestPermission().then(result => {
+            if(result === "granted"){
+                gyroEnabled = true;
+            }
+        });
+    } else {
+        gyroEnabled = true;
+    }
 }
 
-});
+window.addEventListener("click", enableGyroscope, { once: true });
 
-}else{
-
-gyroEnabled=true;
-
-}
-
-}
-
-window.addEventListener("click",enableGyroscope,{once:true});
-
-window.addEventListener("deviceorientation",(event)=>{
-
-if(!gyroEnabled) return;
-
-const gamma=event.gamma||0;
-const beta=event.beta||0;
-
-player.rotation.y=-gamma*0.02;
-
-camera.position.x=player.position.x+Math.sin(player.rotation.y)*15;
-
-camera.position.z=player.position.z+Math.cos(player.rotation.y)*15;
-
-camera.position.y=player.position.y+8;
-
-camera.lookAt(player.position);
-
+window.addEventListener("deviceorientation", (event) => {
+    if(!gyroEnabled) return;
+    const gamma = event.gamma || 0;
+    player.rotation.y = -gamma * 0.02;
+    camera.position.x = player.position.x + Math.sin(player.rotation.y) * 15;
+    camera.position.z = player.position.z + Math.cos(player.rotation.y) * 15;
+    camera.position.y = player.position.y + 8;
+    camera.lookAt(player.position);
 });
 
 // =========================
-// السماء
+// السماء والشمس والسحب
 // =========================
 
-const sky=new THREE.Mesh(
-
-new THREE.SphereGeometry(900,64,64),
-
-new THREE.MeshBasicMaterial({
-
-color:0x87CEEB,
-
-side:THREE.BackSide
-
-})
-
+const sky = new THREE.Mesh(
+    new THREE.SphereGeometry(900, 64, 64),
+    new THREE.MeshBasicMaterial({ color: 0x87CEEB, side: THREE.BackSide })
 );
-
 scene.add(sky);
 
-// =========================
-// الشمس
-// =========================
-
-const sunMesh=new THREE.Mesh(
-
-new THREE.SphereGeometry(12,32,32),
-
-new THREE.MeshBasicMaterial({
-
-color:0xffff66
-
-})
-
+const sunMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(12, 32, 32),
+    new THREE.MeshBasicMaterial({ color: 0xffff66 })
 );
-
-sunMesh.position.set(180,160,-250);
-
+sunMesh.position.set(180, 160, -250);
 scene.add(sunMesh);
 
-// =========================
-// سحب
-// =========================
+for(let i = 0; i < 40; i++){
+    const cloud = new THREE.Mesh(
+        new THREE.SphereGeometry(Math.random() * 5 + 5, 16, 16),
+        new THREE.MeshBasicMaterial({ color: 0xffffff })
+    );
+    cloud.position.set(
+        (Math.random() - 0.5) * 700,
+        Math.random() * 80 + 40,
+        (Math.random() - 0.5) * 700
+    );
+    scene.add(cloud);
+}
 
-for(let i=0;i<40;i++){
-
-const cloud=new THREE.Mesh(
-
-new THREE.SphereGeometry(
-
-Math.random()*5+5,
-
-16,
-
-16
-
-),
-
-new THREE.MeshBasicMaterial({
-
-color:0xffffff
-
-})
-
-);
-
-cloud.position.set(
-
-(Math.random()-0.5)*700,
-
-Math.random()*80+40,
-
-(Math.random()-0.5)*700
-
-);
-
-scene.add(cloud);
-
+const stars = [];
+for(let i = 0; i < 400; i++){
+    const star = new THREE.Mesh(
+        new THREE.SphereGeometry(0.4, 8, 8),
+        new THREE.MeshBasicMaterial({ color: 0xffffff })
+    );
+    star.position.set(
+        (Math.random() - 0.5) * 1800,
+        Math.random() * 700 + 100,
+        (Math.random() - 0.5) * 1800
+    );
+    scene.add(star);
+    stars.push(star);
 }
 
 // =========================
-// نجوم لليل
+// جبال وبحيرة
 // =========================
 
-const stars=[];
-
-for(let i=0;i<400;i++){
-
-const star=new THREE.Mesh(
-
-new THREE.SphereGeometry(0.4,8,8),
-
-new THREE.MeshBasicMaterial({
-
-color:0xffffff
-
-})
-
-);
-
-star.position.set(
-
-(Math.random()-0.5)*1800,
-
-Math.random()*700+100,
-
-(Math.random()-0.5)*1800
-
-);
-
-scene.add(star);
-
-stars.push(star);
-
-}
-  // =========================
-// جبال
-// =========================
-
-for(let i=0;i<35;i++){
-
-const mountain=new THREE.Mesh(
-
-new THREE.ConeGeometry(
-Math.random()*25+15,
-Math.random()*70+40,
-4
-),
-
-new THREE.MeshStandardMaterial({
-color:0x666666
-})
-
-);
-
-mountain.position.set(
-
-(Math.random()-0.5)*900,
-
-20,
-
-(Math.random()-0.5)*900
-
-);
-
-mountain.castShadow=true;
-
-scene.add(mountain);
-
+for(let i = 0; i < 35; i++){
+    const mountain = new THREE.Mesh(
+        new THREE.ConeGeometry(Math.random() * 25 + 15, Math.random() * 70 + 40, 4),
+        new THREE.MeshStandardMaterial({ color: 0x666666 })
+    );
+    mountain.position.set(
+        (Math.random() - 0.5) * 900,
+        20,
+        (Math.random() - 0.5) * 900
+    );
+    mountain.castShadow = true;
+    scene.add(mountain);
 }
 
-// =========================
-// بحيرة
-// =========================
-
-const lake=new THREE.Mesh(
-
-new THREE.CircleGeometry(45,64),
-
-new THREE.MeshStandardMaterial({
-
-color:0x3ea6ff,
-
-transparent:true,
-
-opacity:0.85
-
-})
-
+const lake = new THREE.Mesh(
+    new THREE.CircleGeometry(45, 64),
+    new THREE.MeshStandardMaterial({ color: 0x3ea6ff, transparent: true, opacity: 0.85 })
 );
-
-lake.rotation.x=-Math.PI/2;
-
-lake.position.set(120,0.03,-80);
-
+lake.rotation.x = -Math.PI / 2;
+lake.position.set(120, 0.03, -80);
 scene.add(lake);
 
 // =========================
-// دورة الليل والنهار
+// حركة وحركة ناعمة
 // =========================
 
-let worldTime=0;
-
-// =========================
-// حركة ناعمة
-// =========================
-
-let targetX=0;
-let targetZ=0;
+let targetX = 0;
+let targetZ = 0;
 
 function movePlayer(){
+    if(keys.forward) targetZ -= speed;
+    if(keys.backward) targetZ += speed;
+    if(keys.left) targetX -= speed;
+    if(keys.right) targetX += speed;
 
-if(keys.forward) targetZ-=speed;
-
-if(keys.backward) targetZ+=speed;
-
-if(keys.left) targetX-=speed;
-
-if(keys.right) targetX+=speed;
-
-player.position.x+=(targetX-player.position.x)*0.15;
-
-player.position.z+=(targetZ-player.position.z)*0.15;
-
+    player.position.x += (targetX - player.position.x) * 0.15;
+    player.position.z += (targetZ - player.position.z) * 0.15;
 }
 
-// =========================
-// تحديث العالم
-// =========================
-
+let worldTime = 0;
 function updateWorld(){
+    worldTime += 0.0015;
+    sunMesh.position.x = Math.cos(worldTime) * 250;
+    sunMesh.position.y = Math.sin(worldTime) * 220 + 60;
+    sun.position.copy(sunMesh.position);
 
-worldTime+=0.0015;
-
-sunMesh.position.x=Math.cos(worldTime)*250;
-
-sunMesh.position.y=Math.sin(worldTime)*220+60;
-
-sun.position.copy(sunMesh.position);
-
-const intensity=Math.max(
-0.15,
-Math.sin(worldTime)+0.4
-);
-
-sun.intensity=intensity*2;
-
-ambientLight.intensity=0.35+intensity;
-
-scene.background.setHSL(
-0.58,
-0.6,
-0.25+intensity*0.35
-);
-
+    const intensity = Math.max(0.15, Math.sin(worldTime) + 0.4);
+    sun.intensity = intensity * 2;
+    ambientLight.intensity = 0.35 + intensity;
+    scene.background.setHSL(0.58, 0.6, 0.25 + intensity * 0.35);
 }
+
 // =========================
 // المطر
 // =========================
 
 const rain = [];
+const rainGeometry = new THREE.BoxGeometry(0.05, 0.7, 0.05);
+const rainMaterial = new THREE.MeshBasicMaterial({ color: 0x66ccff });
 
-const rainGeometry = new THREE.BoxGeometry(0.05,0.7,0.05);
-const rainMaterial = new THREE.MeshBasicMaterial({
-    color:0x66ccff
-});
-
-for(let i=0;i<600;i++){
-
-    const drop = new THREE.Mesh(
-        rainGeometry,
-        rainMaterial
-    );
-
+for(let i = 0; i < 600; i++){
+    const drop = new THREE.Mesh(rainGeometry, rainMaterial);
     drop.position.set(
-        (Math.random()-0.5)*800,
-        Math.random()*250+20,
-        (Math.random()-0.5)*800
+        (Math.random() - 0.5) * 800,
+        Math.random() * 250 + 20,
+        (Math.random() - 0.5) * 800
     );
-
     scene.add(drop);
-
     rain.push(drop);
-
 }
-
-// =========================
-// نجوم متحركة
-// =========================
 
 function updateStars(){
-
     for(const star of stars){
-
         star.rotation.y += 0.01;
-
     }
-
 }
-
-// =========================
-// تحديث المطر
-// =========================
 
 function updateRain(){
-
     for(const drop of rain){
-
         drop.position.y -= 3;
-
         if(drop.position.y < 0){
-
-            drop.position.y = Math.random()*200+150;
-
-            drop.position.x =
-            (Math.random()-0.5)*800;
-
-            drop.position.z =
-            (Math.random()-0.5)*800;
-
+            drop.position.y = Math.random() * 200 + 150;
+            drop.position.x = (Math.random() - 0.5) * 800;
+            drop.position.z = (Math.random() - 0.5) * 800;
         }
-
     }
-
 }
 
-// =========================
-// دوران اللاعب حسب الاتجاه
-// =========================
-
 function updateRotation(){
-
-    if(keys.forward)
-        player.rotation.y=0;
-
-    if(keys.backward)
-        player.rotation.y=Math.PI;
-
-    if(keys.left)
-        player.rotation.y=Math.PI/2;
-
-    if(keys.right)
-        player.rotation.y=-Math.PI/2;
-
+    if(keys.forward) player.rotation.y = 0;
+    if(keys.backward) player.rotation.y = Math.PI;
+    if(keys.left) player.rotation.y = Math.PI / 2;
+    if(keys.right) player.rotation.y = -Math.PI / 2;
 }
 
 // =========================
 // واجهة FPS
 // =========================
 
-const fpsText=document.createElement("div");
-
-fpsText.style.position="absolute";
-fpsText.style.top="10px";
-fpsText.style.right="10px";
-fpsText.style.color="#00ff00";
-fpsText.style.fontSize="18px";
-fpsText.style.fontFamily="monospace";
-
+const fpsText = document.createElement("div");
+fpsText.style.position = "absolute";
+fpsText.style.top = "10px";
+fpsText.style.right = "10px";
+fpsText.style.color = "#00ff00";
+fpsText.style.fontSize = "18px";
+fpsText.style.fontFamily = "monospace";
 document.body.appendChild(fpsText);
 
-let lastTime=performance.now();
-
-let frames=0;
+let lastTime = performance.now();
+let frames = 0;
 
 function updateFPS(){
-
     frames++;
-
-    const now=performance.now();
-
-    if(now-lastTime>=1000){
-
-        fpsText.innerHTML="FPS : "+frames;
-
-        frames=0;
-
-        lastTime=now;
-
+    const now = performance.now();
+    if(now - lastTime >= 1000){
+        fpsText.innerHTML = "FPS : " + frames;
+        frames = 0;
+        lastTime = now;
     }
-
 }
 
 // =========================
 // حدود العالم
 // =========================
 
-const worldSize=470;
-
+const worldSize = 470;
 function worldLimits(){
-
-player.position.x=Math.max(
--worldSize,
-Math.min(worldSize,player.position.x)
-);
-
-player.position.z=Math.max(
--worldSize,
-Math.min(worldSize,player.position.z)
-);
-
+    player.position.x = Math.max(-worldSize, Math.min(worldSize, player.position.x));
+    player.position.z = Math.max(-worldSize, Math.min(worldSize, player.position.z));
 }
-   // =========================
-// عصا تحكم للهاتف (Joystick)
+
+// =========================
+// Joystick
 // =========================
 
-const joystick=document.createElement("div");
-
-joystick.style.position="absolute";
-joystick.style.left="25px";
-joystick.style.bottom="25px";
-joystick.style.width="120px";
-joystick.style.height="120px";
-joystick.style.borderRadius="50%";
-joystick.style.background="rgba(255,255,255,.15)";
-joystick.style.border="2px solid white";
-joystick.style.touchAction="none";
-
+const joystick = document.createElement("div");
+joystick.style.position = "absolute";
+joystick.style.left = "25px";
+joystick.style.bottom = "25px";
+joystick.style.width = "120px";
+joystick.style.height = "120px";
+joystick.style.borderRadius = "50%";
+joystick.style.background = "rgba(255,255,255,.15)";
+joystick.style.border = "2px solid white";
+joystick.style.touchAction = "none";
 document.body.appendChild(joystick);
 
-const stick=document.createElement("div");
-
-stick.style.position="absolute";
-stick.style.left="35px";
-stick.style.top="35px";
-stick.style.width="50px";
-stick.style.height="50px";
-stick.style.borderRadius="50%";
-stick.style.background="#00ff88";
-
+const stick = document.createElement("div");
+stick.style.position = "absolute";
+stick.style.left = "35px";
+stick.style.top = "35px";
+stick.style.width = "50px";
+stick.style.height = "50px";
+stick.style.borderRadius = "50%";
+stick.style.background = "#00ff88";
 joystick.appendChild(stick);
 
-let joyX=0;
-let joyY=0;
+let joyX = 0;
+let joyY = 0;
 
-joystick.addEventListener("pointermove",(e)=>{
-
-if(e.buttons!==1)return;
-
-const rect=joystick.getBoundingClientRect();
-
-const x=e.clientX-rect.left-60;
-
-const y=e.clientY-rect.top-60;
-
-const max=35;
-
-joyX=Math.max(-1,Math.min(1,x/max));
-joyY=Math.max(-1,Math.min(1,y/max));
-
-stick.style.left=(35+joyX*35)+"px";
-stick.style.top=(35+joyY*35)+"px";
-
+joystick.addEventListener("pointermove", (e) => {
+    if(e.buttons !== 1) return;
+    const rect = joystick.getBoundingClientRect();
+    const x = e.clientX - rect.left - 60;
+    const y = e.clientY - rect.top - 60;
+    const max = 35;
+    joyX = Math.max(-1, Math.min(1, x / max));
+    joyY = Math.max(-1, Math.min(1, y / max));
+    stick.style.left = (35 + joyX * 35) + "px";
+    stick.style.top = (35 + joyY * 35) + "px";
 });
 
-joystick.addEventListener("pointerup",()=>{
-
-joyX=0;
-joyY=0;
-
-stick.style.left="35px";
-stick.style.top="35px";
-
+joystick.addEventListener("pointerup", () => {
+    joyX = 0;
+    joyY = 0;
+    stick.style.left = "35px";
+    stick.style.top = "35px";
 });
 
 function joystickMove(){
-
-player.position.x+=joyX*speed;
-
-player.position.z+=joyY*speed;
-
+    player.position.x += joyX * speed;
+    player.position.z += joyY * speed;
 }
 
 // =========================
-// بحيرة متحركة
-// =========================
-
-let waterTime=0;
-
-function animateLake(){
-
-waterTime+=0.03;
-
-lake.rotation.z=Math.sin(waterTime)*0.01;
-
-lake.material.opacity=
-0.82+
-Math.sin(waterTime)*0.05;
-
-}
-
-// =========================
-// دوران الشمس
-// =========================
-
-function rotateSun(){
-
-sunMesh.rotation.y+=0.01;
-
-}
-
-// =========================
-// تأثير تنفس اللاعب
-// =========================
-
-let breathe=0;
-
-function breathing(){
-
-breathe+=0.08;
-
-player.scale.y=
-
-1+
-
-Math.sin(breathe)*0.03;
-
-}
-      // =========================
-// إنشاء طريق
+// الطرق والبيوت والجسر
 // =========================
 
 const road = new THREE.Mesh(
-
-new THREE.PlaneGeometry(40,800),
-
-new THREE.MeshStandardMaterial({
-    color:0x2b2b2b
-})
-
+    new THREE.PlaneGeometry(40, 800),
+    new THREE.MeshStandardMaterial({ color: 0x2b2b2b })
 );
-
-road.rotation.x=-Math.PI/2;
-road.position.y=0.02;
-
+road.rotation.x = -Math.PI / 2;
+road.position.y = 0.02;
 scene.add(road);
 
-// =========================
-// خطوط الطريق
-// =========================
-
-for(let i=-390;i<=390;i+=20){
-
-const line=new THREE.Mesh(
-
-new THREE.PlaneGeometry(2,8),
-
-new THREE.MeshBasicMaterial({
-color:0xffffff
-})
-
-);
-
-line.rotation.x=-Math.PI/2;
-
-line.position.set(0,0.03,i);
-
-scene.add(line);
-
+for(let i = -390; i <= 390; i += 20){
+    const line = new THREE.Mesh(
+        new THREE.PlaneGeometry(2, 8),
+        new THREE.MeshBasicMaterial({ color: 0xffffff })
+    );
+    line.rotation.x = -Math.PI / 2;
+    line.position.set(0, 0.03, i);
+    scene.add(line);
 }
 
-// =========================
-// منزل
-// =========================
+function createHouse(x, z){
+    const base = new THREE.Mesh(
+        new THREE.BoxGeometry(8, 6, 8),
+        new THREE.MeshStandardMaterial({ color: 0xd8b37a })
+    );
+    base.position.set(x, 3, z);
+    base.castShadow = true;
+    scene.add(base);
 
-function createHouse(x,z){
-
-const base=new THREE.Mesh(
-
-new THREE.BoxGeometry(8,6,8),
-
-new THREE.MeshStandardMaterial({
-color:0xd8b37a
-})
-
-);
-
-base.position.set(x,3,z);
-
-base.castShadow=true;
-
-scene.add(base);
-
-const roof=new THREE.Mesh(
-
-new THREE.ConeGeometry(6,4,4),
-
-new THREE.MeshStandardMaterial({
-color:0xaa2222
-})
-
-);
-
-roof.rotation.y=Math.PI/4;
-
-roof.position.set(x,8,z);
-
-roof.castShadow=true;
-
-scene.add(roof);
-
+    const roof = new THREE.Mesh(
+        new THREE.ConeGeometry(6, 4, 4),
+        new THREE.MeshStandardMaterial({ color: 0xaa2222 })
+    );
+    roof.rotation.y = Math.PI / 4;
+    roof.position.set(x, 8, z);
+    roof.castShadow = true;
+    scene.add(roof);
 }
 
-for(let i=0;i<18;i++){
-
-createHouse(
-
-(Math.random()-0.5)*500,
-
-(Math.random()-0.5)*500
-
-);
-
+for(let i = 0; i < 18; i++){
+    createHouse((Math.random() - 0.5) * 500, (Math.random() - 0.5) * 500);
 }
 
-// =========================
-// جسر
-// =========================
-
-const bridge=new THREE.Mesh(
-
-new THREE.BoxGeometry(18,1,70),
-
-new THREE.MeshStandardMaterial({
-color:0x7d5a3d
-})
-
+const bridge = new THREE.Mesh(
+    new THREE.BoxGeometry(18, 1, 70),
+    new THREE.MeshStandardMaterial({ color: 0x7d5a3d })
 );
-
-bridge.position.set(120,1,-80);
-
+bridge.position.set(120, 1, -80);
 scene.add(bridge);
 
 // =========================
-// أعمدة الجسر
+// العملات والنقاط
 // =========================
 
-for(let i=-30;i<=30;i+=10){
-
-const p=new THREE.Mesh(
-
-new THREE.BoxGeometry(1,6,1),
-
-new THREE.MeshStandardMaterial({
-color:0x555555
-})
-
-);
-
-p.position.set(111,3,i-80);
-
-scene.add(p);
-
-const p2=p.clone();
-
-p2.position.x=129;
-
-scene.add(p2);
-
+const coins = [];
+function createCoin(x, z){
+    const coin = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.8, 0.8, 0.25, 24),
+        new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0xaa8800 })
+    );
+    coin.rotation.x = Math.PI / 2;
+    coin.position.set(x, 2, z);
+    scene.add(coin);
+    coins.push(coin);
 }
 
-// =========================
-// عملة ذهبية
-// =========================
-
-const coins=[];
-
-function createCoin(x,z){
-
-const coin=new THREE.Mesh(
-
-new THREE.CylinderGeometry(0.8,0.8,0.25,24),
-
-new THREE.MeshStandardMaterial({
-color:0xffd700,
-emissive:0xaa8800
-})
-
-);
-
-coin.rotation.x=Math.PI/2;
-
-coin.position.set(x,2,z);
-
-scene.add(coin);
-
-coins.push(coin);
-
+for(let i = 0; i < 40; i++){
+    createCoin((Math.random() - 0.5) * 700, (Math.random() - 0.5) * 700);
 }
 
-for(let i=0;i<40;i++){
-
-createCoin(
-
-(Math.random()-0.5)*700,
-
-(Math.random()-0.5)*700
-
-);
-
-}
-
-// =========================
-// جمع العملات
-// =========================
-
-let score=0;
-
-const scoreText=document.createElement("div");
-
-scoreText.style.position="absolute";
-scoreText.style.left="15px";
-scoreText.style.top="45px";
-scoreText.style.color="yellow";
-scoreText.style.fontSize="22px";
-
-scoreText.innerHTML="Coins : 0";
-
+let score = 0;
+const scoreText = document.createElement("div");
+scoreText.style.position = "absolute";
+scoreText.style.left = "15px";
+scoreText.style.top = "45px";
+scoreText.style.color = "yellow";
+scoreText.style.fontSize = "22px";
+scoreText.innerHTML = "Coins : 0";
 document.body.appendChild(scoreText);
 
 function collectCoins(){
-
-for(let i=coins.length-1;i>=0;i--){
-
-const coin=coins[i];
-
-coin.rotation.y+=0.08;
-
-if(player.position.distanceTo(coin.position)<3){
-
-scene.remove(coin);
-
-coins.splice(i,1);
-
-score++;
-
-scoreText.innerHTML="Coins : "+score;
-
+    for(let i = coins.length - 1; i >= 0; i--){
+        const coin = coins[i];
+        coin.rotation.y += 0.08;
+        if(player.position.distanceTo(coin.position) < 3){
+            scene.remove(coin);
+            coins.splice(i, 1);
+            score++;
+            scoreText.innerHTML = "Coins : " + score;
+        }
+    }
 }
 
-}
-
-}
-       // =========================
-// السيارة
+// =========================
+// السيارة والركوب
 // =========================
 
 const car = new THREE.Group();
-
 const body = new THREE.Mesh(
-
-new THREE.BoxGeometry(4,1.2,7),
-
-new THREE.MeshStandardMaterial({
-color:0xff2222
-})
-
+    new THREE.BoxGeometry(4, 1.2, 7),
+    new THREE.MeshStandardMaterial({ color: 0xff2222 })
 );
-
-body.position.y=1.2;
-
+body.position.y = 1.2;
 car.add(body);
 
-const cabin = new THREE.Mesh(
+let driving = false;
+window.addEventListener("keydown", (e) => {
+    if(e.key === "e" || e.key === "E"){
+        if(player.position.distanceTo(car.position) < 6){
+            driving = !driving;
+        }
+    }
+});
 
-new THREE.BoxGeometry(3,1.2,3),
+function updateCar(){
+    if(!driving) return;
+    if(keys.forward) car.position.z -= 0.45;
+    if(keys.backward) car.position.z += 0.45;
+    if(keys.left) car.position.x -= 0.45;
+    if(keys.right) car.position.x += 0.45;
 
-new THREE.MeshStandardMaterial({
-color:0x66ccff
-})
-
-);
-
-cabin.position.set(0,2,0);
-
-car.add(cabin);
-
-function wheel(x,z){
-
-const w=new THREE.Mesh(
-
-new THREE.CylinderGeometry(0.6,0.6,0.5,20),
-
-new THREE.MeshStandardMaterial({
-color:0x111111
-})
-
-);
-
-w.rotation.z=Math.PI/2;
-
-w.position.set(x,0.6,z);
-
-car.add(w);
-
+    player.position.copy(car.position);
+    camera.position.set(car.position.x, car.position.y + 8, car.position.z + 15);
+    camera.lookAt(car.position);
 }
 
-wheel(-2,-2.2);
-wheel(2,-2.2);
-wheel(-2,2.2);
-wheel(2,2.2);
-
-car.position.set(15,0,-15);
-
+car.position.set(15, 0, -15);
 scene.add(car);
 
 // =========================
-// الركوب
+// القفز والركض والشريط
 // =========================
 
-let driving=false;
+let velocityY = 0;
+let onGround = true;
 
-window.addEventListener("keydown",(e)=>{
-
-if(e.key==="e"){
-
-if(player.position.distanceTo(car.position)<6){
-
-driving=!driving;
-
-}
-
-}
-
+window.addEventListener("keydown", (e) => {
+    if(e.code === "Space" && onGround){
+        velocityY = 0.35;
+        onGround = false;
+    }
+    if(e.key === "Shift") running = true;
 });
 
-// =========================
-// قيادة السيارة
-// =========================
-
-function updateCar(){
-
-if(!driving)return;
-
-if(keys.forward) car.position.z-=0.45;
-
-if(keys.backward) car.position.z+=0.45;
-
-if(keys.left) car.position.x-=0.45;
-
-if(keys.right) car.position.x+=0.45;
-
-player.position.copy(car.position);
-
-camera.position.set(
-
-car.position.x,
-
-car.position.y+8,
-
-car.position.z+15
-
-);
-
-camera.lookAt(car.position);
-
-}
-
-// =========================
-// أعمدة إنارة
-// =========================
-
-for(let i=-350;i<=350;i+=35){
-
-const pole=new THREE.Mesh(
-
-new THREE.CylinderGeometry(0.2,0.25,8),
-
-new THREE.MeshStandardMaterial({
-color:0x555555
-})
-
-);
-
-pole.position.set(-8,4,i);
-
-scene.add(pole);
-
-const lamp=new THREE.Mesh(
-
-new THREE.SphereGeometry(0.45),
-
-new THREE.MeshBasicMaterial({
-color:0xffffaa
-})
-
-);
-
-lamp.position.set(-8,8,i);
-
-scene.add(lamp);
-
-const light=new THREE.PointLight(
-
-0xfff2aa,
-
-2,
-
-25
-
-);
-
-light.position.set(-8,8,i);
-
-scene.add(light);
-
-}
-
-// =========================
-// حفظ اللعبة
-// =========================
-
-function saveGame(){
-
-localStorage.setItem(
-
-"playerX",
-
-player.position.x
-
-);
-
-localStorage.setItem(
-
-"playerZ",
-
-player.position.z
-
-);
-
-}
-
-function loadGame(){
-
-const x=localStorage.getItem("playerX");
-
-const z=localStorage.getItem("playerZ");
-
-if(x!==null){
-
-player.position.x=parseFloat(x);
-
-}
-
-if(z!==null){
-
-player.position.z=parseFloat(z);
-
-}
-
-}
-
-loadGame();
-
-setInterval(saveGame,5000);
-       // =========================
-// القفز
-// =========================
-
-let velocityY=0;
-let onGround=true;
-
-window.addEventListener("keydown",(e)=>{
-
-if(e.code==="Space"&&onGround){
-
-velocityY=0.35;
-onGround=false;
-
-}
-
+let running = false;
+window.addEventListener("keyup", (e) => {
+    if(e.key === "Shift") running = false;
 });
 
 function updateJump(){
-
-velocityY-=0.015;
-
-player.position.y+=velocityY;
-
-if(player.position.y<=2){
-
-player.position.y=2;
-
-velocityY=0;
-
-onGround=true;
-
+    velocityY -= 0.015;
+    player.position.y += velocityY;
+    if(player.position.y <= 2){
+        player.position.y = 2;
+        velocityY = 0;
+        onGround = true;
+    }
 }
-
-}
-
-// =========================
-// الركض
-// =========================
-
-let running=false;
-
-window.addEventListener("keydown",(e)=>{
-
-if(e.key==="Shift") running=true;
-
-});
-
-window.addEventListener("keyup",(e)=>{
-
-if(e.key==="Shift") running=false;
-
-});
 
 function updateSpeed(){
-
-if(running){
-
-speed=0.45;
-
-}else{
-
-speed=0.25;
-
+    speed = running ? 0.45 : 0.25;
 }
 
-}
-
-// =========================
-// شريط الحياة
-// =========================
-
-let health=100;
-
-const healthBox=document.createElement("div");
-
-healthBox.style.position="absolute";
-healthBox.style.left="15px";
-healthBox.style.top="80px";
-healthBox.style.width="220px";
-healthBox.style.height="20px";
-healthBox.style.border="2px solid white";
-
+let health = 100;
+const healthBox = document.createElement("div");
+healthBox.style.position = "absolute";
+healthBox.style.left = "15px";
+healthBox.style.top = "80px";
+healthBox.style.width = "220px";
+healthBox.style.height = "20px";
+healthBox.style.border = "2px solid white";
 document.body.appendChild(healthBox);
 
-const healthBar=document.createElement("div");
-
-healthBar.style.width="100%";
-healthBar.style.height="100%";
-healthBar.style.background="lime";
-
+const healthBar = document.createElement("div");
+healthBar.style.width = "100%";
+healthBar.style.height = "100%";
+healthBar.style.background = "lime";
 healthBox.appendChild(healthBar);
 
 function updateHealth(){
-
-healthBar.style.width=health+"%";
-
-if(health>60){
-
-healthBar.style.background="lime";
-
-}else if(health>30){
-
-healthBar.style.background="orange";
-
-}else{
-
-healthBar.style.background="red";
-
-}
-
+    healthBar.style.width = health + "%";
+    if(health > 60) healthBar.style.background = "lime";
+    else if(health > 30) healthBar.style.background = "orange";
+    else healthBar.style.background = "red";
 }
 
 // =========================
-// ضرر عند السقوط
+// نظام الطقس والعشب
 // =========================
 
-function damagePlayer(){
-
-if(player.position.y<-10){
-
-health-=20;
-
-player.position.set(0,2,0);
-
-if(health<0){
-
-health=100;
-
-}
-
-}
-
-}
-
-// =========================
-// طيور
-// =========================
-
-const birds=[];
-
-for(let i=0;i<12;i++){
-
-const bird=new THREE.Mesh(
-
-new THREE.ConeGeometry(0.4,1.2,3),
-
-new THREE.MeshBasicMaterial({
-
-color:0xffffff
-
-})
-
-);
-
-bird.rotation.z=Math.PI/2;
-
-bird.position.set(
-
-(Math.random()-0.5)*300,
-
-Math.random()*40+25,
-
-(Math.random()-0.5)*300
-
-);
-
-scene.add(bird);
-
-birds.push(bird);
-
-}
-
-function updateBirds(){
-
-birds.forEach((bird,index)=>{
-
-bird.position.x+=Math.sin(performance.now()*0.001+index)*0.08;
-
-bird.position.z+=0.12;
-
-if(bird.position.z>450){
-
-bird.position.z=-450;
-
-}
-
-});
-
-}
-       // =========================
-// نظام الطقس
-// =========================
-
-let weather="sun";
-
+let weather = "sun";
 function changeWeather(){
-
-const types=["sun","rain","fog"];
-
-weather=types[Math.floor(Math.random()*types.length)];
-
+    const types = ["sun", "rain", "fog"];
+    weather = types[Math.floor(Math.random() * types.length)];
 }
-
-setInterval(changeWeather,30000);
+setInterval(changeWeather, 30000);
 
 function updateWeather(){
-
-if(weather==="sun"){
-
-scene.fog.near=80;
-scene.fog.far=450;
-
-rain.forEach(r=>r.visible=false);
-
-renderer.setClearColor(0x87ceeb);
-
+    if(weather === "sun"){
+        scene.fog.near = 80;
+        scene.fog.far = 450;
+        rain.forEach(r => r.visible = false);
+    } else if(weather === "rain"){
+        scene.fog.near = 40;
+        scene.fog.far = 250;
+        rain.forEach(r => r.visible = true);
+    } else if(weather === "fog"){
+        scene.fog.near = 15;
+        scene.fog.far = 120;
+        rain.forEach(r => r.visible = false);
+    }
 }
 
-if(weather==="rain"){
-
-scene.fog.near=40;
-scene.fog.far=250;
-
-rain.forEach(r=>r.visible=true);
-
-renderer.setClearColor(0x5d6d7e);
-
-}
-
-if(weather==="fog"){
-
-scene.fog.near=15;
-scene.fog.far=120;
-
-rain.forEach(r=>r.visible=false);
-
-renderer.setClearColor(0xbfc9ca);
-
-}
-
-}
-
-// =========================
-// عشب
-// =========================
-
-const grass=[];
-
-for(let i=0;i<800;i++){
-
-const blade=new THREE.Mesh(
-
-new THREE.BoxGeometry(
-0.08,
-0.6+Math.random()*0.5,
-0.08
-),
-
-new THREE.MeshStandardMaterial({
-
-color:0x2ecc71
-
-})
-
-);
-
-blade.position.set(
-
-(Math.random()-0.5)*900,
-
-0.3,
-
-(Math.random()-0.5)*900
-
-);
-
-scene.add(blade);
-
-grass.push(blade);
-
+const grass = [];
+for(let i = 0; i < 800; i++){
+    const blade = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08, 0.6 + Math.random() * 0.5, 0.08),
+        new THREE.MeshStandardMaterial({ color: 0x2ecc71 })
+    );
+    blade.position.set(
+        (Math.random() - 0.5) * 900,
+        0.3,
+        (Math.random() - 0.5) * 900
+    );
+    scene.add(blade);
+    grass.push(blade);
 }
 
 function animateGrass(){
-
-const t=performance.now()*0.002;
-
-grass.forEach((g,i)=>{
-
-g.rotation.z=Math.sin(t+i)*0.12;
-
-});
-
+    const t = performance.now() * 0.002;
+    grass.forEach((g, i) => {
+        g.rotation.z = Math.sin(t + i) * 0.12;
+    });
 }
 
-// =========================
-// دوران عجلات السيارة
-// =========================
-
-function rotateCarWheels(){
-
-if(!driving)return;
-
-car.children.forEach(obj=>{
-
-if(obj.geometry&&obj.geometry.type==="CylinderGeometry"){
-
-obj.rotation.x+=0.25;
-
-}
-
-});
-
-}
-
-// =========================
-// اصطدام بالمنازل
-// =========================
-
-function collideHouse(){
-
-scene.children.forEach(obj=>{
-
-if(obj.geometry&&obj.geometry.type==="BoxGeometry"){
-
-const d=obj.position.distanceTo(player.position);
-
-if(d<4){
-
-player.position.x-=Math.sin(player.rotation.y);
-
-player.position.z-=Math.cos(player.rotation.y);
-
-}
-
-}
-
-});
-
-}
-
-// =========================
-// مهام بسيطة
-// =========================
-
-const mission=document.createElement("div");
-
-mission.style.position="absolute";
-mission.style.left="15px";
-mission.style.bottom="15px";
-mission.style.color="white";
-mission.style.fontSize="18px";
-
-mission.innerHTML="Mission : Collect 20 Coins";
-
+const mission = document.createElement("div");
+mission.style.position = "absolute";
+mission.style.left = "15px";
+mission.style.bottom = "15px";
+mission.style.color = "white";
+mission.style.fontSize = "18px";
+mission.innerHTML = "Mission : Collect 20 Coins";
 document.body.appendChild(mission);
 
 function updateMission(){
-
-if(score>=20){
-
-mission.innerHTML="Mission Complete ✔";
-
+    if(score >= 20){
+        mission.innerHTML = "Mission Complete ✔";
+    }
 }
 
-}
-       // =========================
-// الحلقة النهائية
+// =========================
+// الحلقة الرئيسية المشتركة
 // =========================
 
 function animate(){
+    requestAnimationFrame(animate);
 
-requestAnimationFrame(animate);
+    movePlayer();
+    joystickMove();
+    updateRotation();
+    if(!driving) updateCamera();
 
-// الحركة
-movePlayer();
+    updateRain();
+    updateStars();
+    updateWorld();
+    updateJump();
+    updateSpeed();
+    updateWeather();
+    animateGrass();
+    collectCoins();
+    updateCar();
+    updateMission();
+    updateHealth();
+    worldLimits();
+    updateFPS();
 
-// الكاميرا
-updateCamera();
-
-// المطر
-if(typeof updateRain==="function") updateRain();
-
-// النجوم
-if(typeof updateStars==="function") updateStars();
-
-// الطيور
-if(typeof updateBirds==="function") updateBirds();
-
-// العالم
-if(typeof updateWorld==="function") updateWorld();
-
-// القفز
-if(typeof updateJump==="function") updateJump();
-
-// الركض
-if(typeof updateSpeed==="function") updateSpeed();
-
-// الجو
-if(typeof updateWeather==="function") updateWeather();
-
-// العشب
-if(typeof animateGrass==="function") animateGrass();
-
-// العملات
-if(typeof collectCoins==="function") collectCoins();
-
-// السيارة
-if(typeof updateCar==="function") updateCar();
-
-// المهام
-if(typeof updateMission==="function") updateMission();
-
-// الحياة
-if(typeof updateHealth==="function") updateHealth();
-
-// المطر
-if(typeof worldLimits==="function") worldLimits();
-
-// FPS
-if(typeof updateFPS==="function") updateFPS();
-
-renderer.render(scene,camera);
-
+    renderer.render(scene, camera);
 }
+
+// إخفاء شاشة التحميل وبدء اللعبة
+const loading = document.getElementById("loading");
+if(loading) loading.style.display = "none";
 
 animate();
 
-// إخفاء شاشة التحميل
-const loading=document.getElementById("loading");
-
-if(loading){
-
-loading.style.display="none";
-
-}
-
-// تغيير حجم الشاشة
-
-window.addEventListener("resize",()=>{
-
-camera.aspect=window.innerWidth/window.innerHeight;
-
-camera.updateProjectionMatrix();
-
-renderer.setSize(
-
-window.innerWidth,
-
-window.innerHeight
-
-);
-
+// إعادة ضبط الحجم مع نافذة المتصفح
+window.addEventListener("resize", () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
 });
-      </script>  
+
+</script>
+</body>
+</html>
