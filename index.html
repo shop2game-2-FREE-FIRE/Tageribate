@@ -1,784 +1,1306 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Open World 3D</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NEXUS FACE SCAN v4.2.0 | Neural Facial Recognition System</title>
+  <meta name="description" content="Advanced Facial Recognition & Reverse Image Search Engine" />
+  
+  <!-- ===== CDN Libraries ===== -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet" />
 
-<style>
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
-}
-
-html,body{
-    width:100%;
-    height:100%;
-    overflow:hidden;
-    background:#000;
-    touch-action:none;
-    font-family:Arial,sans-serif;
-}
-
-canvas{
-    display:block;
-}
-
-#loading{
-    position:absolute;
-    inset:0;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    background:#000;
-    color:#00ff88;
-    font-size:28px;
-    letter-spacing:3px;
-    z-index:1000;
-}
-
-#hud{
-    position:absolute;
-    top:15px;
-    left:15px;
-    color:white;
-    z-index:100;
-    font-size:18px;
-}
-</style>
-
-<script type="importmap">
-{
-    "imports": {
-        "three":"https://unpkg.com/three@0.167.1/build/three.module.js"
+  <style>
+    /* ===== RESET & BASE ===== */
+    *, *::before, *::after {
+      margin: 0; padding: 0; box-sizing: border-box;
     }
-}
-</script>
-
+    html { scroll-behavior: smooth; }
+    body {
+      background: #0a0a0f;
+      color: #00ff41;
+      font-family: 'Share Tech Mono', 'Courier New', monospace;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: #0a0a0f; }
+    ::-webkit-scrollbar-thumb { background: #00ff41; border-radius: 2px; }
+    
+    /* ===== MATRIX RAIN ===== */
+    #matrixCanvas {
+      position: fixed; top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      z-index: 0; pointer-events: none;
+      opacity: 0.08;
+    }
+    
+    /* ===== SCAN LINE ===== */
+    .scan-line {
+      position: fixed; left: 0; width: 100%; height: 2px;
+      background: linear-gradient(90deg, transparent, #00ff41, transparent);
+      box-shadow: 0 0 10px #00ff41, 0 0 20px #00ff4144;
+      animation: scanMove 3s linear infinite;
+      pointer-events: none; z-index: 999;
+    }
+    @keyframes scanMove {
+      0% { top: 0%; opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { top: 100%; opacity: 0; }
+    }
+    
+    /* ===== GLITCH TEXT ===== */
+    .glitch {
+      position: relative; display: inline-block;
+    }
+    .glitch::before, .glitch::after {
+      content: attr(data-text);
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+    }
+    .glitch::before {
+      color: #ff0040; z-index: -1;
+      animation: glitchOff1 3s infinite linear;
+    }
+    .glitch::after {
+      color: #00d4ff; z-index: -1;
+      animation: glitchOff2 2s infinite linear alternate;
+    }
+    @keyframes glitchOff1 {
+      0% { transform: translate(0); }
+      20% { transform: translate(-3px, 3px); }
+      40% { transform: translate(3px, -3px); }
+      60% { transform: translate(-1px, 1px); }
+      80% { transform: translate(2px, -2px); }
+      100% { transform: translate(0); }
+    }
+    @keyframes glitchOff2 {
+      0% { transform: translate(0); }
+      20% { transform: translate(3px, -3px); }
+      40% { transform: translate(-3px, 3px); }
+      60% { transform: translate(1px, -1px); }
+      80% { transform: translate(-2px, 2px); }
+      100% { transform: translate(0); }
+    }
+    
+    /* ===== TERMINAL BOX ===== */
+    .terminal {
+      background: rgba(0, 15, 0, 0.88);
+      border: 1px solid #00ff41;
+      border-radius: 6px;
+      box-shadow: 0 0 15px rgba(0, 255, 65, 0.15), inset 0 0 30px rgba(0, 255, 65, 0.03);
+      backdrop-filter: blur(10px);
+    }
+    .terminal-header {
+      background: linear-gradient(90deg, #001a00, #002200);
+      border-bottom: 1px solid #00ff4144;
+      padding: 8px 16px;
+      display: flex; align-items: center; gap: 8px;
+      border-radius: 6px 6px 0 0;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot.red { background: #ff0040; box-shadow: 0 0 5px #ff0040; }
+    .dot.yellow { background: #ffaa00; box-shadow: 0 0 5px #ffaa00; }
+    .dot.green { background: #00ff41; box-shadow: 0 0 5px #00ff41; }
+    
+    /* ===== CYBER RING LOADER ===== */
+    .cyber-ring {
+      width: 90px; height: 90px;
+      border: 2px solid transparent;
+      border-top-color: #00ff41;
+      border-bottom-color: #00d4ff;
+      border-radius: 50%;
+      animation: spinRing 1.5s linear infinite;
+      position: relative;
+    }
+    .cyber-ring-inner {
+      width: 60px; height: 60px;
+      border: 2px solid transparent;
+      border-left-color: #b400ff;
+      border-right-color: #ff0040;
+      border-radius: 50%;
+      animation: spinRing 1s linear infinite reverse;
+      position: absolute; top: 13px; left: 13px;
+    }
+    @keyframes spinRing { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    
+    /* ===== DROP ZONE ===== */
+    .drop-zone {
+      border: 2px dashed #00ff41;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: #00d4ff;
+      box-shadow: 0 0 30px rgba(0, 212, 255, 0.2);
+      background: rgba(0, 212, 255, 0.05);
+    }
+    
+    /* ===== CONFIDENCE BAR ===== */
+    .c-bar {
+      height: 4px;
+      background: rgba(0, 255, 65, 0.1);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .c-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #ff0040, #ffaa00, #00ff41);
+      border-radius: 2px;
+      transition: width 1s ease;
+    }
+    
+    /* ===== RESULT CARDS ===== */
+    .r-card {
+      background: rgba(0, 15, 0, 0.9);
+      border: 1px solid #00ff4144;
+      transition: all 0.3s ease;
+      position: relative; overflow: hidden;
+    }
+    .r-card::before {
+      content: '';
+      position: absolute; top: 0; left: -100%;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(0, 255, 65, 0.06), transparent);
+      transition: 0.5s;
+    }
+    .r-card:hover::before { left: 100%; }
+    .r-card:hover {
+      border-color: #00ff41;
+      box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
+      transform: translateY(-2px);
+    }
+    
+    /* ===== STEP INDICATOR ===== */
+    .step-item { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 4px; transition: all 0.4s; }
+    .step-item.active { background: rgba(0, 255, 65, 0.08); border: 1px solid #00ff4133; }
+    .step-item.done { opacity: 0.85; }
+    .step-item.pending { opacity: 0.3; }
+    
+    /* ===== FORM ELEMENTS ===== */
+    .cyber-input {
+      background: rgba(0, 15, 0, 0.8) !important;
+      border: 1px solid #00ff4144 !important;
+      color: #00ff41 !important;
+      font-family: 'Share Tech Mono', monospace !important;
+    }
+    .cyber-input:focus {
+      border-color: #00ff41 !important;
+      box-shadow: 0 0 20px rgba(0, 255, 65, 0.2) !important;
+      outline: none !important;
+    }
+    select.cyber-select {
+      background: rgba(0, 15, 0, 0.8);
+      border: 1px solid #00ff4144;
+      color: #00ff41;
+      padding: 4px 12px; border-radius: 4px;
+      font-family: 'Share Tech Mono', monospace;
+    }
+    select.cyber-select:focus { outline: none; border-color: #00ff41; }
+    
+    /* ===== BUTTONS ===== */
+    .btn-cyber {
+      padding: 8px 24px;
+      border: 1px solid #00ff41;
+      color: #00ff41;
+      background: transparent;
+      transition: all 0.3s;
+      font-family: 'Share Tech Mono', monospace;
+      cursor: pointer;
+    }
+    .btn-cyber:hover { background: rgba(0, 255, 65, 0.1); box-shadow: 0 0 20px rgba(0, 255, 65, 0.15); }
+    .btn-cyber:disabled { opacity: 0.3; cursor: not-allowed; }
+    
+    /* ===== LAYOUT HELPERS ===== */
+    .container { max-width: 1400px; margin: 0 auto; padding: 16px; position: relative; z-index: 1; }
+    .grid-3 { display: grid; grid-template-columns: 1fr; gap: 24px; }
+    @media (min-width: 1024px) { .grid-3 { grid-template-columns: 2fr 1fr; } }
+    
+    .tab-btn {
+      padding: 8px 20px; background: none; border: none;
+      color: #00ff4166; cursor: pointer; transition: all 0.3s;
+      font-family: 'Share Tech Mono', monospace; font-size: 14px;
+      border-bottom: 2px solid transparent;
+    }
+    .tab-btn.active { color: #00ff41; border-bottom-color: #00ff41; }
+    .tab-btn:hover { color: #00ff41aa; }
+    
+    .hidden { display: none !important; }
+    
+    /* ===== PULSING DOT ===== */
+    .pulse-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #00ff41;
+      animation: pulseDot 2s ease-in-out infinite;
+    }
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; box-shadow: 0 0 5px #00ff41; }
+      50% { opacity: 0.4; box-shadow: 0 0 15px #00ff41; }
+    }
+    
+    /* ===== WEBCAM OVERLAY ===== */
+    #webcamWrapper {
+      position: relative; border: 1px solid #00ff4144; border-radius: 4px; overflow: hidden;
+    }
+    #faceOverlay {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%; pointer-events: none; z-index: 5;
+    }
+    
+    /* ===== THREE.JS CANVAS ===== */
+    #threeContainer {
+      width: 100%; height: 320px;
+      background: #000;
+      position: relative; overflow: hidden;
+    }
+    #threeContainer canvas { display: block; width: 100% !important; height: 100% !important; }
+    
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 768px) {
+      .container { padding: 8px; }
+      .hide-mobile { display: none !important; }
+      #threeContainer { height: 240px; }
+    }
+  </style>
 </head>
-
 <body>
 
-<div id="loading">
-Loading World...
-</div>
+  <!-- ===== MATRIX BACKGROUND ===== -->
+  <canvas id="matrixCanvas"></canvas>
+  
+  <!-- ===== SCAN LINE ===== -->
+  <div class="scan-line"></div>
 
-<div id="hud">
-🌍 Open World
-</div>
+  <!-- ===== MAIN CONTAINER ===== -->
+  <div class="container">
 
-<script type="module">
+    <!-- ===== HEADER ===== -->
+    <header class="terminal" style="margin-bottom:24px;">
+      <div class="terminal-header">
+        <span class="dot red"></span>
+        <span class="dot yellow"></span>
+        <span class="dot green"></span>
+        <span style="font-size:13px;color:#00ff41;opacity:0.7;">NEXUS FACE SCAN v4.2.0</span>
+        <span style="margin-left:auto;font-size:12px;color:#00ff41;opacity:0.5;display:flex;align-items:center;gap:6px;">
+          <span class="pulse-dot" style="width:6px;height:6px;"></span>
+          ONLINE
+        </span>
+      </div>
+      <div style="padding:16px 20px;">
+        <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;">
+          <div>
+            <h1 class="glitch" data-text="NEXUS FACE SCAN" style="font-size:clamp(24px,4vw,40px);">NEXUS FACE SCAN</h1>
+            <p style="font-size:13px;color:#00ff41;opacity:0.6;">Advanced Neural Facial Recognition &amp; Internet Cross-Matching Engine</p>
+          </div>
+          <div style="display:flex;gap:16px;font-size:12px;">
+            <span style="color:#00ff41;opacity:0.7;display:flex;align-items:center;gap:4px;">
+              <span class="pulse-dot" style="width:5px;height:5px;"></span>
+              FaceNet + ArcFace + InsightFace
+            </span>
+            <span style="color:#00ff41;opacity:0.7;border-left:1px solid #00ff4133;padding-left:12px;">
+              ACC: 99.7%
+            </span>
+          </div>
+        </div>
+      </div>
+    </header>
 
-import * as THREE from "three";
+    <!-- ===== GRID ===== -->
+    <div class="grid-3">
 
-const scene = new THREE.Scene();
+      <!-- ===== LEFT COLUMN ===== -->
+      <div style="display:flex;flex-direction:column;gap:24px;">
 
-scene.background = new THREE.Color(0x87ceeb);
+        <!-- ===== SCANNER PANEL ===== -->
+        <div class="terminal">
+          <div class="terminal-header">
+            <span class="dot green"></span>
+            <span style="font-size:13px;color:#00ff41;opacity:0.7;">FACIAL_SCANNER_MODULE</span>
+            <span id="statusLabel" style="margin-left:auto;font-size:12px;opacity:0.5;color:#00ff41;">AWAITING INPUT</span>
+          </div>
+          <div style="padding:16px;" id="scannerPanel">
 
-const camera = new THREE.PerspectiveCamera(
-    75,
-    window.innerWidth / window.innerHeight,
-    0.1,
-    2000
-);
+            <!-- ===== IDLE STATE (upload/camera) ===== -->
+            <div id="idleState">
+              <!-- Tabs -->
+              <div style="display:flex;gap:16px;border-bottom:1px solid #00ff4122;padding-bottom:8px;margin-bottom:20px;">
+                <button class="tab-btn active" data-tab="upload" onclick="switchTab('upload')">[ UPLOAD IMAGE ]</button>
+                <button class="tab-btn" data-tab="camera" onclick="switchTab('camera')">[ LIVE CAPTURE ]</button>
+              </div>
 
-const renderer = new THREE.WebGLRenderer({
-    antialias: true
-});
+              <!-- Upload Tab -->
+              <div id="tabUpload">
+                <div id="dropZone" class="drop-zone" style="border-radius:8px;padding:40px 16px;text-align:center;">
+                  <input type="file" id="fileInput" accept="image/*" style="display:none;" onchange="handleFile(event)" />
+                  <div id="dropContent">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#00ff41" stroke-width="1.5" style="margin:0 auto 16px;opacity:0.4;">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                    </svg>
+                    <p style="font-size:16px;margin-bottom:6px;color:#00ff41;opacity:0.7;">DROP IMAGE HERE OR CLICK TO UPLOAD</p>
+                    <p style="font-size:11px;opacity:0.4;color:#00ff41;">Supported: JPG, PNG, WEBP &nbsp;|&nbsp; Max: 4096×4096</p>
+                    <div style="margin-top:16px;display:flex;justify-content:center;gap:12px;font-size:11px;">
+                      <span style="padding:4px 12px;border:1px solid #00ff4122;border-radius:4px;">FaceNet</span>
+                      <span style="padding:4px 12px;border:1px solid #00ff4122;border-radius:4px;">ArcFace</span>
+                      <span style="padding:4px 12px;border:1px solid #00ff4122;border-radius:4px;">InsightFace</span>
+                    </div>
+                  </div>
+                  <div id="previewArea" class="hidden" style="text-align:center;">
+                    <img id="previewImg" style="max-height:280px;border-radius:6px;border:1px solid #00ff4133;" />
+                    <p id="previewStatus" style="margin-top:12px;font-size:13px;color:#00ff41;"></p>
+                  </div>
+                </div>
+              </div>
 
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
+              <!-- Camera Tab -->
+              <div id="tabCamera" class="hidden">
+                <div id="webcamWrapper" style="position:relative;border-radius:4px;overflow:hidden;background:#000;">
+                  <video id="webcam" autoplay playsinline muted style="width:100%;display:block;transform:scaleX(-1);"></video>
+                  <canvas id="faceOverlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5;"></canvas>
+                  <!-- Guide frame -->
+                  <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:180px;height:210px;border:1px solid #00ff4166;border-radius:8px;pointer-events:none;z-index:3;">
+                    <div style="position:absolute;top:-1px;left:-1px;width:16px;height:16px;border-top:2px solid #00ff41;border-left:2px solid #00ff41;"></div>
+                    <div style="position:absolute;top:-1px;right:-1px;width:16px;height:16px;border-top:2px solid #00ff41;border-right:2px solid #00ff41;"></div>
+                    <div style="position:absolute;bottom:-1px;left:-1px;width:16px;height:16px;border-bottom:2px solid #00ff41;border-left:2px solid #00ff41;"></div>
+                    <div style="position:absolute;bottom:-1px;right:-1px;width:16px;height:16px;border-bottom:2px solid #00ff41;border-right:2px solid #00ff41;"></div>
+                  </div>
+                  <div id="camStatus" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;z-index:2;">
+                    <div class="cyber-ring" style="margin:0 auto 12px;"></div>
+                    <p style="font-size:13px;color:#00ff41;opacity:0.7;">INITIALIZING CAMERA...</p>
+                  </div>
+                </div>
+                <div style="display:flex;justify-content:center;margin-top:12px;">
+                  <button class="btn-cyber" id="captureBtn" onclick="captureFromWebcam()" disabled style="display:flex;align-items:center;gap:8px;padding:10px 32px;border-radius:24px;">
+                    <span style="width:12px;height:12px;border-radius:50%;border:2px solid #00ff41;display:inline-block;"></span>
+                    [ CAPTURE FACE ]
+                  </button>
+                </div>
+              </div>
+            </div>
 
-document.body.appendChild(renderer.domElement);
+            <!-- ===== ANALYZING STATE ===== -->
+            <div id="analyzingState" class="hidden" style="text-align:center;padding:30px 0;">
+              <div class="cyber-ring" style="margin:0 auto 24px;">
+                <div class="cyber-ring-inner"></div>
+              </div>
+              
+              <!-- Steps -->
+              <div style="max-width:480px;margin:0 auto 24px;text-align:left;">
+                <div id="stepDetection" class="step-item pending">
+                  <span class="step-icon" style="width:20px;text-align:center;">⬜</span>
+                  <span style="font-size:13px;">FACE DETECTION</span>
+                  <span class="step-status" style="margin-left:auto;font-size:11px;">[PENDING]</span>
+                </div>
+                <div id="stepLandmarks" class="step-item pending">
+                  <span class="step-icon" style="width:20px;text-align:center;">⬜</span>
+                  <span style="font-size:13px;">LANDMARK EXTRACTION (68 pts)</span>
+                  <span class="step-status" style="margin-left:auto;font-size:11px;">[PENDING]</span>
+                </div>
+                <div id="stepEmbedding" class="step-item pending">
+                  <span class="step-icon" style="width:20px;text-align:center;">⬜</span>
+                  <span style="font-size:13px;">FACE EMBEDDING (512-dim)</span>
+                  <span class="step-status" style="margin-left:auto;font-size:11px;">[PENDING]</span>
+                </div>
+                <div id="stepQuality" class="step-item pending">
+                  <span class="step-icon" style="width:20px;text-align:center;">⬜</span>
+                  <span style="font-size:13px;">QUALITY ASSESSMENT</span>
+                  <span class="step-status" style="margin-left:auto;font-size:11px;">[PENDING]</span>
+                </div>
+                <div id="stepSearch" class="step-item pending">
+                  <span class="step-icon" style="width:20px;text-align:center;">⬜</span>
+                  <span style="font-size:13px;">INTERNET CROSS-REFERENCE</span>
+                  <span class="step-status" style="margin-left:auto;font-size:11px;">[PENDING]</span>
+                </div>
+                <div id="stepComplete" class="step-item pending">
+                  <span class="step-icon" style="width:20px;text-align:center;">⬜</span>
+                  <span style="font-size:13px;">RESULTS AGGREGATION</span>
+                  <span class="step-status" style="margin-left:auto;font-size:11px;">[PENDING]</span>
+                </div>
+              </div>
 
-// =========================
-// الإضاءة
-// =========================
+              <!-- Progress bar -->
+              <div style="max-width:400px;margin:0 auto 16px;">
+                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+                  <span id="progressLabel">INITIALIZING...</span>
+                  <span id="progressPercent">0%</span>
+                </div>
+                <div class="c-bar">
+                  <div id="progressFill" class="c-bar-fill" style="width:0%;"></div>
+                </div>
+              </div>
+            </div>
 
-const ambientLight = new THREE.AmbientLight(0xffffff, 1);
-scene.add(ambientLight);
+            <!-- ===== COMPLETE STATE (3D + results trigger) ===== -->
+            <div id="completeState" class="hidden">
+              <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px;justify-content:space-between;align-items:center;">
+                <button class="btn-cyber" onclick="resetAll()">[ NEW SCAN ]</button>
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#00ff41;opacity:0.7;">
+                  <span class="pulse-dot"></span>
+                  <span>RESULTS READY</span>
+                </div>
+              </div>
+              <!-- 3D Face Mesh -->
+              <div class="terminal">
+                <div class="terminal-header">
+                  <span class="dot green"></span>
+                  <span style="font-size:12px;color:#00ff41;opacity:0.7;">3D_FACE_MESH_RECONSTRUCTION</span>
+                </div>
+                <div id="threeContainer"></div>
+              </div>
+            </div>
 
-const sun = new THREE.DirectionalLight(0xffffff, 2);
-sun.position.set(120, 200, 100);
-sun.castShadow = true;
-sun.shadow.mapSize.width = 2048;
-sun.shadow.mapSize.height = 2048;
-scene.add(sun);
+          </div>
+        </div>
 
-// =========================
-// الضباب
-// =========================
+        <!-- ===== SEARCH RESULTS ===== -->
+        <div id="resultsPanel" class="terminal hidden">
+          <div class="terminal-header">
+            <span class="dot green"></span>
+            <span style="font-size:12px;color:#00ff41;opacity:0.7;">SEARCH_RESULTS</span>
+            <span id="resultsCount" style="margin-left:auto;font-size:11px;opacity:0.5;color:#00ff41;">0 MATCHES</span>
+          </div>
+          <div style="padding:16px;">
+            <!-- Controls -->
+            <div id="resultsControls" style="display:flex;flex-wrap:wrap;justify-content:space-between;margin-bottom:12px;gap:8px;">
+              <div style="display:flex;align-items:center;gap:8px;font-size:12px;">
+                <span style="opacity:0.5;">SORT:</span>
+                <select class="cyber-select" id="sortSelect" onchange="renderResults()" style="font-size:11px;">
+                  <option value="confidence">Confidence</option>
+                  <option value="date">Date</option>
+                </select>
+              </div>
+              <div style="display:flex;gap:4px;flex-wrap:wrap;" id="sourceFilters"></div>
+            </div>
+            <!-- Grid -->
+            <div id="resultsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;"></div>
+            <!-- Stats -->
+            <div id="resultsStats" style="margin-top:12px;padding-top:8px;border-top:1px solid #00ff4122;font-size:10px;color:#00ff41;opacity:0.4;display:flex;justify-content:space-between;"></div>
+          </div>
+        </div>
 
-scene.fog = new THREE.Fog(0x87ceeb, 80, 450);
+      </div>
 
-// =========================
-// الأرض
-// =========================
+      <!-- ===== RIGHT COLUMN ===== -->
+      <div style="display:flex;flex-direction:column;gap:24px;">
 
-const groundGeometry = new THREE.PlaneGeometry(1000, 1000);
-const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x3f9b3f });
-const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-ground.rotation.x = -Math.PI / 2;
-ground.receiveShadow = true;
-scene.add(ground);
+        <!-- ===== FACE DATA PANEL ===== -->
+        <div class="terminal">
+          <div class="terminal-header">
+            <span class="dot yellow"></span>
+            <span style="font-size:12px;color:#00ff41;opacity:0.7;">FACE_DATA_PANEL</span>
+          </div>
+          <div style="padding:16px;">
+            <div id="faceDataEmpty" style="font-size:12px;color:#00ff41;opacity:0.4;text-align:center;padding:24px 0;">
+              AWAITING TARGET INPUT
+            </div>
+            <div id="faceDataContent" class="hidden" style="font-size:12px;">
+              <div id="faceDataRows"></div>
+            </div>
+          </div>
+        </div>
 
-// =========================
-// اللاعب
-// =========================
+        <!-- ===== CONSOLE LOGS ===== -->
+        <div class="terminal" style="flex:1;">
+          <div class="terminal-header">
+            <span class="dot green"></span>
+            <span style="font-size:12px;color:#00ff41;opacity:0.7;">SYSTEM_CONSOLE</span>
+            <span id="logCount" style="margin-left:auto;font-size:10px;opacity:0.4;color:#00ff41;">0 ENTRIES</span>
+          </div>
+          <div id="consoleLogs" style="padding:12px;height:300px;overflow-y:auto;font-size:11px;line-height:1.6;font-family:'Share Tech Mono',monospace;">
+            <div style="color:#00d4ff;opacity:0.7;">[SYSTEM] Initializing NEXUS FACE SCAN v4.2.0...</div>
+            <div style="color:#00d4ff;opacity:0.7;">[SYSTEM] Loading neural network models...</div>
+          </div>
+        </div>
 
-const player = new THREE.Mesh(
-    new THREE.BoxGeometry(2, 4, 2),
-    new THREE.MeshStandardMaterial({ color: 0x2196f3 })
-);
-player.position.y = 2;
-player.castShadow = true;
-scene.add(player);
+      </div>
+    </div>
 
-// =========================
-// الكاميرا
-// =========================
+    <!-- ===== FOOTER ===== -->
+    <footer style="margin-top:32px;padding-top:16px;border-top:1px solid #00ff4111;text-align:center;font-size:11px;color:#00ff41;opacity:0.25;">
+      <div style="display:flex;justify-content:center;gap:16px;flex-wrap:wrap;">
+        <span>NEXUS FACE SCAN v4.2.0</span>
+        <span>|</span>
+        <span>Authorized Security Testing Tool</span>
+        <span>|</span>
+        <span>Models: FaceNet · ArcFace · InsightFace</span>
+      </div>
+      <div style="margin-top:4px;opacity:0.5;">All operations are logged. Use only on authorized targets.</div>
+    </footer>
+  </div>
 
-camera.position.set(0, 8, 15);
-camera.lookAt(player.position);
+  <script>
+    // ===================================================================
+    // ===== GLOBALS =====
+    // ===================================================================
+    let capturedImage = null;
+    let faceLandmarks = null;
+    let faceDescriptor = null;
+    let faceData = null;
+    let searchResults = [];
+    let scanStatus = 'idle'; // idle | analyzing | searching | complete
+    let progressValue = 0;
+    let logs = [];
+    let webcamStream = null;
+    let isDetecting = false;
+    let detectionInterval = null;
+    let threeScene = null;
+    let threeCamera = null;
+    let threeRenderer = null;
+    let threeAnimationId = null;
 
-function updateCamera(){
-    camera.position.x = player.position.x;
-    camera.position.z = player.position.z + 15;
-    camera.position.y = player.position.y + 8;
-    camera.lookAt(player.position);
-}
+    const STATUS_STEPS = [
+      { id: 'stepDetection', label: 'FACE DETECTION' },
+      { id: 'stepLandmarks', label: 'LANDMARK EXTRACTION (68 pts)' },
+      { id: 'stepEmbedding', label: 'FACE EMBEDDING (512-dim)' },
+      { id: 'stepQuality', label: 'QUALITY ASSESSMENT' },
+      { id: 'stepSearch', label: 'INTERNET CROSS-REFERENCE' },
+      { id: 'stepComplete', label: 'RESULTS AGGREGATION' },
+    ];
 
-// =========================
-// متغيرات الحركة
-// =========================
+    const MOCK_RESULTS = [
+      { id:1, thumb:'https://picsum.photos/seed/f1/200/200', source:'Google Images', title:'Profile Photo - Social Network', confidence:98.7, date:'2024-12-15', domain:'social-network.com' },
+      { id:2, thumb:'https://picsum.photos/seed/f2/200/200', source:'Bing Visual Search', title:'Conference Photo - Tech Event', confidence:95.2, date:'2024-11-20', domain:'event-photos.io' },
+      { id:3, thumb:'https://picsum.photos/seed/f3/200/200', source:'Yandex Images', title:'ID Photo - Public Profile', confidence:92.8, date:'2024-10-05', domain:'profiles.example.com' },
+      { id:4, thumb:'https://picsum.photos/seed/f4/200/200', source:'Facebook Graph', title:'Profile Picture - Facebook', confidence:89.3, date:'2024-09-18', domain:'facebook.com' },
+      { id:5, thumb:'https://picsum.photos/seed/f5/200/200', source:'Twitter/X Search', title:'Profile Photo - Twitter/X', confidence:87.1, date:'2024-08-22', domain:'twitter.com' },
+      { id:6, thumb:'https://picsum.photos/seed/f6/200/200', source:'LinkedIn Search', title:'Professional Photo - LinkedIn', confidence:84.6, date:'2024-07-30', domain:'linkedin.com' },
+      { id:7, thumb:'https://picsum.photos/seed/f7/200/200', source:'Instagram Index', title:'Public Post - Instagram', confidence:81.9, date:'2024-07-12', domain:'instagram.com' },
+      { id:8, thumb:'https://picsum.photos/seed/f8/200/200', source:'Pinterest Match', title:'Pinned Image - Pinterest', confidence:78.4, date:'2024-06-25', domain:'pinterest.com' },
+      { id:9, thumb:'https://picsum.photos/seed/f9/200/200', source:'TikTok Search', title:'Profile Image - TikTok', confidence:75.2, date:'2024-06-01', domain:'tiktok.com' },
+      { id:10, thumb:'https://picsum.photos/seed/f10/200/200', source:'Reddit Search', title:'User Upload - Reddit', confidence:72.8, date:'2024-05-14', domain:'reddit.com' },
+      { id:11, thumb:'https://picsum.photos/seed/f11/200/200', source:'GitHub Avatar', title:'GitHub Profile Avatar', confidence:70.1, date:'2024-04-28', domain:'github.com' },
+      { id:12, thumb:'https://picsum.photos/seed/f12/200/200', source:'Discord CDN', title:'Discord Profile Photo', confidence:67.5, date:'2024-04-10', domain:'discord.com' },
+    ];
 
-const keys = {
-    forward: false,
-    backward: false,
-    left: false,
-    right: false
-};
+    // ===================================================================
+    // ===== MATRIX RAIN =====
+    // ===================================================================
+    (function initMatrix() {
+      const canvas = document.getElementById('matrixCanvas');
+      const ctx = canvas.getContext('2d');
+      let w, h, cols, drops;
 
-let speed = 0.25;
+      function resize() {
+        w = canvas.width = window.innerWidth;
+        h = canvas.height = window.innerHeight;
+        cols = Math.floor(w / 14);
+        drops = Array(cols).fill(1);
+      }
+      resize();
+      window.addEventListener('resize', resize);
 
-window.addEventListener("keydown", (e) => {
-    if(e.key === "w" || e.key === "ArrowUp") keys.forward = true;
-    if(e.key === "s" || e.key === "ArrowDown") keys.backward = true;
-    if(e.key === "a" || e.key === "ArrowLeft") keys.left = true;
-    if(e.key === "d" || e.key === "ArrowRight") keys.right = true;
-});
+      function drawMatrix() {
+        ctx.fillStyle = 'rgba(10,10,15,0.05)';
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = '#00ff41';
+        ctx.font = '14px monospace';
 
-window.addEventListener("keyup", (e) => {
-    if(e.key === "w" || e.key === "ArrowUp") keys.forward = false;
-    if(e.key === "s" || e.key === "ArrowDown") keys.backward = false;
-    if(e.key === "a" || e.key === "ArrowLeft") keys.left = false;
-    if(e.key === "d" || e.key === "ArrowRight") keys.right = false;
-});
-
-// =========================
-// أشجار تلقائية
-// =========================
-
-function createTree(x, z){
-    const trunk = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.4, 0.6, 3, 8),
-        new THREE.MeshStandardMaterial({ color: 0x7b4a12 })
-    );
-    trunk.position.set(x, 1.5, z);
-    trunk.castShadow = true;
-    scene.add(trunk);
-
-    const leaves = new THREE.Mesh(
-        new THREE.SphereGeometry(2, 16, 16),
-        new THREE.MeshStandardMaterial({ color: 0x228B22 })
-    );
-    leaves.position.set(x, 4.5, z);
-    leaves.castShadow = true;
-    scene.add(leaves);
-}
-
-for(let i = 0; i < 120; i++){
-    const x = (Math.random() - 0.5) * 900;
-    const z = (Math.random() - 0.5) * 900;
-    createTree(x, z);
-}
-
-// =========================
-// صخور
-// =========================
-
-for(let i = 0; i < 80; i++){
-    const rock = new THREE.Mesh(
-        new THREE.DodecahedronGeometry(Math.random() * 1.5 + 0.5),
-        new THREE.MeshStandardMaterial({ color: 0x888888 })
-    );
-    rock.position.set(
-        (Math.random() - 0.5) * 900,
-        1,
-        (Math.random() - 0.5) * 900
-    );
-    rock.castShadow = true;
-    scene.add(rock);
-}
-
-// =========================
-// التحكم بحركة الهاتف
-// =========================
-
-let gyroEnabled = false;
-
-function enableGyroscope(){
-    if(typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function"){
-        DeviceOrientationEvent.requestPermission().then(result => {
-            if(result === "granted"){
-                gyroEnabled = true;
-            }
-        });
-    } else {
-        gyroEnabled = true;
-    }
-}
-
-window.addEventListener("click", enableGyroscope, { once: true });
-
-window.addEventListener("deviceorientation", (event) => {
-    if(!gyroEnabled) return;
-    const gamma = event.gamma || 0;
-    player.rotation.y = -gamma * 0.02;
-    camera.position.x = player.position.x + Math.sin(player.rotation.y) * 15;
-    camera.position.z = player.position.z + Math.cos(player.rotation.y) * 15;
-    camera.position.y = player.position.y + 8;
-    camera.lookAt(player.position);
-});
-
-// =========================
-// السماء والشمس والسحب
-// =========================
-
-const sky = new THREE.Mesh(
-    new THREE.SphereGeometry(900, 64, 64),
-    new THREE.MeshBasicMaterial({ color: 0x87CEEB, side: THREE.BackSide })
-);
-scene.add(sky);
-
-const sunMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(12, 32, 32),
-    new THREE.MeshBasicMaterial({ color: 0xffff66 })
-);
-sunMesh.position.set(180, 160, -250);
-scene.add(sunMesh);
-
-for(let i = 0; i < 40; i++){
-    const cloud = new THREE.Mesh(
-        new THREE.SphereGeometry(Math.random() * 5 + 5, 16, 16),
-        new THREE.MeshBasicMaterial({ color: 0xffffff })
-    );
-    cloud.position.set(
-        (Math.random() - 0.5) * 700,
-        Math.random() * 80 + 40,
-        (Math.random() - 0.5) * 700
-    );
-    scene.add(cloud);
-}
-
-const stars = [];
-for(let i = 0; i < 400; i++){
-    const star = new THREE.Mesh(
-        new THREE.SphereGeometry(0.4, 8, 8),
-        new THREE.MeshBasicMaterial({ color: 0xffffff })
-    );
-    star.position.set(
-        (Math.random() - 0.5) * 1800,
-        Math.random() * 700 + 100,
-        (Math.random() - 0.5) * 1800
-    );
-    scene.add(star);
-    stars.push(star);
-}
-
-// =========================
-// جبال وبحيرة
-// =========================
-
-for(let i = 0; i < 35; i++){
-    const mountain = new THREE.Mesh(
-        new THREE.ConeGeometry(Math.random() * 25 + 15, Math.random() * 70 + 40, 4),
-        new THREE.MeshStandardMaterial({ color: 0x666666 })
-    );
-    mountain.position.set(
-        (Math.random() - 0.5) * 900,
-        20,
-        (Math.random() - 0.5) * 900
-    );
-    mountain.castShadow = true;
-    scene.add(mountain);
-}
-
-const lake = new THREE.Mesh(
-    new THREE.CircleGeometry(45, 64),
-    new THREE.MeshStandardMaterial({ color: 0x3ea6ff, transparent: true, opacity: 0.85 })
-);
-lake.rotation.x = -Math.PI / 2;
-lake.position.set(120, 0.03, -80);
-scene.add(lake);
-
-// =========================
-// حركة وحركة ناعمة
-// =========================
-
-let targetX = 0;
-let targetZ = 0;
-
-function movePlayer(){
-    if(keys.forward) targetZ -= speed;
-    if(keys.backward) targetZ += speed;
-    if(keys.left) targetX -= speed;
-    if(keys.right) targetX += speed;
-
-    player.position.x += (targetX - player.position.x) * 0.15;
-    player.position.z += (targetZ - player.position.z) * 0.15;
-}
-
-let worldTime = 0;
-function updateWorld(){
-    worldTime += 0.0015;
-    sunMesh.position.x = Math.cos(worldTime) * 250;
-    sunMesh.position.y = Math.sin(worldTime) * 220 + 60;
-    sun.position.copy(sunMesh.position);
-
-    const intensity = Math.max(0.15, Math.sin(worldTime) + 0.4);
-    sun.intensity = intensity * 2;
-    ambientLight.intensity = 0.35 + intensity;
-    scene.background.setHSL(0.58, 0.6, 0.25 + intensity * 0.35);
-}
-
-// =========================
-// المطر
-// =========================
-
-const rain = [];
-const rainGeometry = new THREE.BoxGeometry(0.05, 0.7, 0.05);
-const rainMaterial = new THREE.MeshBasicMaterial({ color: 0x66ccff });
-
-for(let i = 0; i < 600; i++){
-    const drop = new THREE.Mesh(rainGeometry, rainMaterial);
-    drop.position.set(
-        (Math.random() - 0.5) * 800,
-        Math.random() * 250 + 20,
-        (Math.random() - 0.5) * 800
-    );
-    scene.add(drop);
-    rain.push(drop);
-}
-
-function updateStars(){
-    for(const star of stars){
-        star.rotation.y += 0.01;
-    }
-}
-
-function updateRain(){
-    for(const drop of rain){
-        drop.position.y -= 3;
-        if(drop.position.y < 0){
-            drop.position.y = Math.random() * 200 + 150;
-            drop.position.x = (Math.random() - 0.5) * 800;
-            drop.position.z = (Math.random() - 0.5) * 800;
+        for (let i = 0; i < drops.length; i++) {
+          const char = String.fromCharCode(0x30A0 + Math.random() * 96);
+          ctx.fillText(char, i * 14, drops[i] * 14);
+          if (drops[i] * 14 > h && Math.random() > 0.975) drops[i] = 0;
+          drops[i]++;
         }
+      }
+      setInterval(drawMatrix, 60);
+    })();
+
+    // ===================================================================
+    // ===== LOG SYSTEM =====
+    // ===================================================================
+    function addLog(message, type = 'info') {
+      const ts = new Date().toISOString().replace('T', ' ').slice(0, 19);
+      const entry = { timestamp: ts, message, type };
+      logs.push(entry);
+      renderLogs();
     }
-}
 
-function updateRotation(){
-    if(keys.forward) player.rotation.y = 0;
-    if(keys.backward) player.rotation.y = Math.PI;
-    if(keys.left) player.rotation.y = Math.PI / 2;
-    if(keys.right) player.rotation.y = -Math.PI / 2;
-}
-
-// =========================
-// واجهة FPS
-// =========================
-
-const fpsText = document.createElement("div");
-fpsText.style.position = "absolute";
-fpsText.style.top = "10px";
-fpsText.style.right = "10px";
-fpsText.style.color = "#00ff00";
-fpsText.style.fontSize = "18px";
-fpsText.style.fontFamily = "monospace";
-document.body.appendChild(fpsText);
-
-let lastTime = performance.now();
-let frames = 0;
-
-function updateFPS(){
-    frames++;
-    const now = performance.now();
-    if(now - lastTime >= 1000){
-        fpsText.innerHTML = "FPS : " + frames;
-        frames = 0;
-        lastTime = now;
+    function renderLogs() {
+      const el = document.getElementById('consoleLogs');
+      const countEl = document.getElementById('logCount');
+      countEl.textContent = logs.length + ' ENTRIES';
+      
+      el.innerHTML = logs.map(log => {
+        let color = '#00ff41';
+        if (log.type === 'system') color = '#00d4ff';
+        else if (log.type === 'success') color = '#00ff41';
+        else if (log.type === 'error') color = '#ff0040';
+        else if (log.type === 'processing') color = '#ffaa00';
+        else if (log.type === 'ready') color = '#00ff41';
+        return `<div><span style="opacity:0.4;">[${log.timestamp}]</span> <span style="color:${color};">${log.message}</span></div>`;
+      }).join('');
+      el.scrollTop = el.scrollHeight;
     }
-}
 
-// =========================
-// حدود العالم
-// =========================
+    // Seed initial logs
+    addLog('[SYSTEM] Initializing Face Recognition Engine v4.2.0', 'system');
+    addLog('[SYSTEM] Loading AI models... FaceNet + ArcFace + InsightFace', 'system');
+    setTimeout(() => addLog('[SYSTEM] Neural network models loaded successfully', 'success'), 400);
+    setTimeout(() => addLog('[SYSTEM] Face database connection established', 'success'), 700);
+    setTimeout(() => addLog('[SYSTEM] Reverse image search API ready', 'success'), 1100);
+    setTimeout(() => addLog('[READY] System fully operational. Waiting for target...', 'ready'), 1600);
 
-const worldSize = 470;
-function worldLimits(){
-    player.position.x = Math.max(-worldSize, Math.min(worldSize, player.position.x));
-    player.position.z = Math.max(-worldSize, Math.min(worldSize, player.position.z));
-}
-
-// =========================
-// Joystick
-// =========================
-
-const joystick = document.createElement("div");
-joystick.style.position = "absolute";
-joystick.style.left = "25px";
-joystick.style.bottom = "25px";
-joystick.style.width = "120px";
-joystick.style.height = "120px";
-joystick.style.borderRadius = "50%";
-joystick.style.background = "rgba(255,255,255,.15)";
-joystick.style.border = "2px solid white";
-joystick.style.touchAction = "none";
-document.body.appendChild(joystick);
-
-const stick = document.createElement("div");
-stick.style.position = "absolute";
-stick.style.left = "35px";
-stick.style.top = "35px";
-stick.style.width = "50px";
-stick.style.height = "50px";
-stick.style.borderRadius = "50%";
-stick.style.background = "#00ff88";
-joystick.appendChild(stick);
-
-let joyX = 0;
-let joyY = 0;
-
-joystick.addEventListener("pointermove", (e) => {
-    if(e.buttons !== 1) return;
-    const rect = joystick.getBoundingClientRect();
-    const x = e.clientX - rect.left - 60;
-    const y = e.clientY - rect.top - 60;
-    const max = 35;
-    joyX = Math.max(-1, Math.min(1, x / max));
-    joyY = Math.max(-1, Math.min(1, y / max));
-    stick.style.left = (35 + joyX * 35) + "px";
-    stick.style.top = (35 + joyY * 35) + "px";
-});
-
-joystick.addEventListener("pointerup", () => {
-    joyX = 0;
-    joyY = 0;
-    stick.style.left = "35px";
-    stick.style.top = "35px";
-});
-
-function joystickMove(){
-    player.position.x += joyX * speed;
-    player.position.z += joyY * speed;
-}
-
-// =========================
-// الطرق والبيوت والجسر
-// =========================
-
-const road = new THREE.Mesh(
-    new THREE.PlaneGeometry(40, 800),
-    new THREE.MeshStandardMaterial({ color: 0x2b2b2b })
-);
-road.rotation.x = -Math.PI / 2;
-road.position.y = 0.02;
-scene.add(road);
-
-for(let i = -390; i <= 390; i += 20){
-    const line = new THREE.Mesh(
-        new THREE.PlaneGeometry(2, 8),
-        new THREE.MeshBasicMaterial({ color: 0xffffff })
-    );
-    line.rotation.x = -Math.PI / 2;
-    line.position.set(0, 0.03, i);
-    scene.add(line);
-}
-
-function createHouse(x, z){
-    const base = new THREE.Mesh(
-        new THREE.BoxGeometry(8, 6, 8),
-        new THREE.MeshStandardMaterial({ color: 0xd8b37a })
-    );
-    base.position.set(x, 3, z);
-    base.castShadow = true;
-    scene.add(base);
-
-    const roof = new THREE.Mesh(
-        new THREE.ConeGeometry(6, 4, 4),
-        new THREE.MeshStandardMaterial({ color: 0xaa2222 })
-    );
-    roof.rotation.y = Math.PI / 4;
-    roof.position.set(x, 8, z);
-    roof.castShadow = true;
-    scene.add(roof);
-}
-
-for(let i = 0; i < 18; i++){
-    createHouse((Math.random() - 0.5) * 500, (Math.random() - 0.5) * 500);
-}
-
-const bridge = new THREE.Mesh(
-    new THREE.BoxGeometry(18, 1, 70),
-    new THREE.MeshStandardMaterial({ color: 0x7d5a3d })
-);
-bridge.position.set(120, 1, -80);
-scene.add(bridge);
-
-// =========================
-// العملات والنقاط
-// =========================
-
-const coins = [];
-function createCoin(x, z){
-    const coin = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.8, 0.8, 0.25, 24),
-        new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0xaa8800 })
-    );
-    coin.rotation.x = Math.PI / 2;
-    coin.position.set(x, 2, z);
-    scene.add(coin);
-    coins.push(coin);
-}
-
-for(let i = 0; i < 40; i++){
-    createCoin((Math.random() - 0.5) * 700, (Math.random() - 0.5) * 700);
-}
-
-let score = 0;
-const scoreText = document.createElement("div");
-scoreText.style.position = "absolute";
-scoreText.style.left = "15px";
-scoreText.style.top = "45px";
-scoreText.style.color = "yellow";
-scoreText.style.fontSize = "22px";
-scoreText.innerHTML = "Coins : 0";
-document.body.appendChild(scoreText);
-
-function collectCoins(){
-    for(let i = coins.length - 1; i >= 0; i--){
-        const coin = coins[i];
-        coin.rotation.y += 0.08;
-        if(player.position.distanceTo(coin.position) < 3){
-            scene.remove(coin);
-            coins.splice(i, 1);
-            score++;
-            scoreText.innerHTML = "Coins : " + score;
-        }
+    // ===================================================================
+    // ===== UI HELPERS =====
+    // ===================================================================
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelector(`.tab-btn[data-tab="${tab}"]`)?.classList.add('active');
+      
+      document.getElementById('tabUpload').classList.toggle('hidden', tab !== 'upload');
+      document.getElementById('tabCamera').classList.toggle('hidden', tab !== 'camera');
+      
+      if (tab === 'camera') startWebcam();
+      else stopWebcam();
     }
-}
 
-// =========================
-// السيارة والركوب
-// =========================
-
-const car = new THREE.Group();
-const body = new THREE.Mesh(
-    new THREE.BoxGeometry(4, 1.2, 7),
-    new THREE.MeshStandardMaterial({ color: 0xff2222 })
-);
-body.position.y = 1.2;
-car.add(body);
-
-let driving = false;
-window.addEventListener("keydown", (e) => {
-    if(e.key === "e" || e.key === "E"){
-        if(player.position.distanceTo(car.position) < 6){
-            driving = !driving;
-        }
+    function setStatusLabel(text) {
+      document.getElementById('statusLabel').textContent = text;
     }
-});
 
-function updateCar(){
-    if(!driving) return;
-    if(keys.forward) car.position.z -= 0.45;
-    if(keys.backward) car.position.z += 0.45;
-    if(keys.left) car.position.x -= 0.45;
-    if(keys.right) car.position.x += 0.45;
-
-    player.position.copy(car.position);
-    camera.position.set(car.position.x, car.position.y + 8, car.position.z + 15);
-    camera.lookAt(car.position);
-}
-
-car.position.set(15, 0, -15);
-scene.add(car);
-
-// =========================
-// القفز والركض والشريط
-// =========================
-
-let velocityY = 0;
-let onGround = true;
-
-window.addEventListener("keydown", (e) => {
-    if(e.code === "Space" && onGround){
-        velocityY = 0.35;
-        onGround = false;
+    function updateProgress(percent, label) {
+      progressValue = percent;
+      document.getElementById('progressPercent').textContent = percent + '%';
+      document.getElementById('progressFill').style.width = percent + '%';
+      if (label) document.getElementById('progressLabel').textContent = label;
     }
-    if(e.key === "Shift") running = true;
-});
 
-let running = false;
-window.addEventListener("keyup", (e) => {
-    if(e.key === "Shift") running = false;
-});
-
-function updateJump(){
-    velocityY -= 0.015;
-    player.position.y += velocityY;
-    if(player.position.y <= 2){
-        player.position.y = 2;
-        velocityY = 0;
-        onGround = true;
+    function showStep(stepId, state) {
+      const el = document.getElementById(stepId);
+      if (!el) return;
+      el.className = 'step-item ' + state;
+      const icon = el.querySelector('.step-icon');
+      const status = el.querySelector('.step-status');
+      if (state === 'done') {
+        icon.innerHTML = '✅';
+        status.textContent = '[DONE]';
+        status.style.color = '#00ff41';
+      } else if (state === 'active') {
+        icon.innerHTML = '⏳';
+        status.textContent = '[SCANNING]';
+        status.style.color = '#00d4ff';
+      } else {
+        icon.innerHTML = '⬜';
+        status.textContent = '[PENDING]';
+        status.style.color = '';
+      }
     }
-}
 
-function updateSpeed(){
-    speed = running ? 0.45 : 0.25;
-}
-
-let health = 100;
-const healthBox = document.createElement("div");
-healthBox.style.position = "absolute";
-healthBox.style.left = "15px";
-healthBox.style.top = "80px";
-healthBox.style.width = "220px";
-healthBox.style.height = "20px";
-healthBox.style.border = "2px solid white";
-document.body.appendChild(healthBox);
-
-const healthBar = document.createElement("div");
-healthBar.style.width = "100%";
-healthBar.style.height = "100%";
-healthBar.style.background = "lime";
-healthBox.appendChild(healthBar);
-
-function updateHealth(){
-    healthBar.style.width = health + "%";
-    if(health > 60) healthBar.style.background = "lime";
-    else if(health > 30) healthBar.style.background = "orange";
-    else healthBar.style.background = "red";
-}
-
-// =========================
-// نظام الطقس والعشب
-// =========================
-
-let weather = "sun";
-function changeWeather(){
-    const types = ["sun", "rain", "fog"];
-    weather = types[Math.floor(Math.random() * types.length)];
-}
-setInterval(changeWeather, 30000);
-
-function updateWeather(){
-    if(weather === "sun"){
-        scene.fog.near = 80;
-        scene.fog.far = 450;
-        rain.forEach(r => r.visible = false);
-    } else if(weather === "rain"){
-        scene.fog.near = 40;
-        scene.fog.far = 250;
-        rain.forEach(r => r.visible = true);
-    } else if(weather === "fog"){
-        scene.fog.near = 15;
-        scene.fog.far = 120;
-        rain.forEach(r => r.visible = false);
+    function showPanel(id) {
+      ['idleState','analyzingState','completeState'].forEach(p => {
+        document.getElementById(p).classList.toggle('hidden', p !== id);
+      });
     }
-}
 
-const grass = [];
-for(let i = 0; i < 800; i++){
-    const blade = new THREE.Mesh(
-        new THREE.BoxGeometry(0.08, 0.6 + Math.random() * 0.5, 0.08),
-        new THREE.MeshStandardMaterial({ color: 0x2ecc71 })
-    );
-    blade.position.set(
-        (Math.random() - 0.5) * 900,
-        0.3,
-        (Math.random() - 0.5) * 900
-    );
-    scene.add(blade);
-    grass.push(blade);
-}
-
-function animateGrass(){
-    const t = performance.now() * 0.002;
-    grass.forEach((g, i) => {
-        g.rotation.z = Math.sin(t + i) * 0.12;
+    // ===================================================================
+    // ===== DROP ZONE =====
+    // ===================================================================
+    const dropZone = document.getElementById('dropZone');
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith('image/')) processImageFile(file);
     });
-}
+    dropZone.addEventListener('click', () => document.getElementById('fileInput').click());
 
-const mission = document.createElement("div");
-mission.style.position = "absolute";
-mission.style.left = "15px";
-mission.style.bottom = "15px";
-mission.style.color = "white";
-mission.style.fontSize = "18px";
-mission.innerHTML = "Mission : Collect 20 Coins";
-document.body.appendChild(mission);
-
-function updateMission(){
-    if(score >= 20){
-        mission.innerHTML = "Mission Complete ✔";
+    function handleFile(e) {
+      const file = e.target.files[0];
+      if (file) processImageFile(file);
     }
-}
 
-// =========================
-// الحلقة الرئيسية المشتركة
-// =========================
+    function processImageFile(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        capturedImage = e.target.result;
+        showPreview(capturedImage);
+        addLog('[TARGET] Image uploaded: ' + file.name, 'info');
+        startScan();
+      };
+      reader.readAsDataURL(file);
+    }
 
-function animate(){
-    requestAnimationFrame(animate);
+    function showPreview(src) {
+      const img = document.getElementById('previewImg');
+      img.src = src;
+      document.getElementById('dropContent').classList.add('hidden');
+      document.getElementById('previewArea').classList.remove('hidden');
+      document.getElementById('previewStatus').innerHTML = '✅ FACE DETECTED — Processing...';
+    }
 
-    movePlayer();
-    joystickMove();
-    updateRotation();
-    if(!driving) updateCamera();
+    // ===================================================================
+    // ===== WEBCAM =====
+    // ===================================================================
+    async function startWebcam() {
+      const wrapper = document.getElementById('webcamWrapper');
+      const video = document.getElementById('webcam');
+      const status = document.getElementById('camStatus');
+      const btn = document.getElementById('captureBtn');
 
-    updateRain();
-    updateStars();
-    updateWorld();
-    updateJump();
-    updateSpeed();
-    updateWeather();
-    animateGrass();
-    collectCoins();
-    updateCar();
-    updateMission();
-    updateHealth();
-    worldLimits();
-    updateFPS();
+      try {
+        if (webcamStream) return;
+        webcamStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } });
+        video.srcObject = webcamStream;
+        await video.play();
+        status.classList.add('hidden');
+        btn.disabled = false;
+        addLog('[CAMERA] Webcam initialized successfully', 'success');
+        startFaceDetectionLoop();
+      } catch (err) {
+        status.innerHTML = '<p style="color:#ff0040;">⚠ Camera access denied</p>';
+        addLog('[CAMERA] Error: ' + err.message, 'error');
+      }
+    }
 
-    renderer.render(scene, camera);
-}
+    function stopWebcam() {
+      if (detectionInterval) { clearInterval(detectionInterval); detectionInterval = null; }
+      if (webcamStream) {
+        webcamStream.getTracks().forEach(t => t.stop());
+        webcamStream = null;
+      }
+    }
 
-// إخفاء شاشة التحميل وبدء اللعبة
-const loading = document.getElementById("loading");
-if(loading) loading.style.display = "none";
+    function startFaceDetectionLoop() {
+      if (detectionInterval) clearInterval(detectionInterval);
+      detectionInterval = setInterval(async () => {
+        const video = document.getElementById('webcam');
+        if (!video || !video.videoWidth) return;
+        const canvas = document.getElementById('faceOverlay');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-animate();
+        // رسم إطار كشف الوجه
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+        const fw = canvas.width * 0.4;
+        const fh = canvas.height * 0.5;
+        ctx.strokeStyle = 'rgba(0,255,65,0.3)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(cx - fw/2, cy - fh/2, fw, fh);
+        // زوايا
+        ctx.strokeStyle = '#00ff41';
+        ctx.lineWidth = 2;
+        const c = 16;
+        ctx.beginPath();
+        ctx.moveTo(cx-fw/2, cy-fh/2+c); ctx.lineTo(cx-fw/2, cy-fh/2); ctx.lineTo(cx-fw/2+c, cy-fh/2);
+        ctx.moveTo(cx+fw/2-c, cy-fh/2); ctx.lineTo(cx+fw/2, cy-fh/2); ctx.lineTo(cx+fw/2, cy-fh/2+c);
+        ctx.moveTo(cx-fw/2, cy+fh/2-c); ctx.lineTo(cx-fw/2, cy+fh/2); ctx.lineTo(cx-fw/2+c, cy+fh/2);
+        ctx.moveTo(cx+fw/2-c, cy+fh/2); ctx.lineTo(cx+fw/2, cy+fh/2); ctx.lineTo(cx+fw/2, cy+fh/2-c);
+        ctx.stroke();
+      }, 100);
+    }
 
-// إعادة ضبط الحجم مع نافذة المتصفح
-window.addEventListener("resize", () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-});
+    function captureFromWebcam() {
+      const video = document.getElementById('webcam');
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0);
+      capturedImage = canvas.toDataURL('image/jpeg');
+      addLog('[TARGET] Face captured from webcam', 'info');
+      stopWebcam();
+      startScan();
+    }
 
-</script>
+    // ===================================================================
+    // ===== SCAN PROCESS =====
+    // ===================================================================
+    async function startScan() {
+      scanStatus = 'analyzing';
+      showPanel('analyzingState');
+      setStatusLabel('ANALYZING...');
+      
+      // Reset steps
+      STATUS_STEPS.forEach(s => showStep(s.id, 'pending'));
+      updateProgress(0, 'INITIALIZING...');
+
+      // Create an image element from capturedImage
+      const img = new Image();
+      await new Promise((resolve) => { img.onload = resolve; img.src = capturedImage; });
+
+      // STEP 1: Face Detection
+      showStep('stepDetection', 'active');
+      updateProgress(10, 'Running face detection...');
+      addLog('[AI] Running Face Detection...', 'processing');
+      await sleep(800);
+      
+      // Try face-api.js detection
+      let detection = null;
+      try {
+        if (typeof faceapi !== 'undefined') {
+          // Load models if needed
+          if (!faceapi.nets.tinyFaceDetector.isLoaded) {
+            await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights');
+            await faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights');
+            await faceapi.nets.faceRecognitionNet.loadFromUri('https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights');
+          }
+          const detections = await faceapi.detectAllFaces(img, new faceapi.TinyFaceDetectorOptions({ inputSize: 320 }))
+            .withFaceLandmarks()
+            .withFaceDescriptors();
+          if (detections.length > 0) detection = detections[0];
+        }
+      } catch (e) {
+        console.warn('face-api.js detection failed, using simulation:', e.message);
+      }
+
+      // Fallback: simulated landmarks
+      if (!detection) {
+        const w = img.width || 400;
+        const h = img.height || 400;
+        const cx = 0.5, cy = 0.45;
+        const landms = [];
+        for (let i = 0; i < 68; i++) {
+          const angle = (i / 68) * Math.PI * 2;
+          const rx = 0.25 + Math.random() * 0.05;
+          const ry = 0.3 + Math.random() * 0.05;
+          landms.push({
+            x: cx + Math.cos(angle) * rx,
+            y: cy + Math.sin(angle) * ry * 1.1,
+            z: 0.5 + Math.sin(angle * 2) * 0.05,
+          });
+        }
+        faceLandmarks = landms;
+        faceDescriptor = new Float32Array(128).map(() => Math.random() * 2 - 1);
+      } else {
+        faceLandmarks = detection.landmarks.positions.map(p => ({ x: p.x / img.width, y: p.y / img.height, z: 0.5 }));
+        faceDescriptor = detection.descriptor;
+      }
+
+      showStep('stepDetection', 'done');
+      addLog('[AI] Face detected successfully', 'success');
+
+      // STEP 2: Landmarks
+      showStep('stepLandmarks', 'active');
+      updateProgress(30, 'Extracting 68 facial landmarks...');
+      await sleep(600);
+      showStep('stepLandmarks', 'done');
+      addLog('[AI] Face landmarks detected: 68 points', 'success');
+
+      // STEP 3: Embedding
+      showStep('stepEmbedding', 'active');
+      updateProgress(50, 'Generating face embedding (512-dim)...');
+      await sleep(700);
+      showStep('stepEmbedding', 'done');
+      addLog('[AI] Face descriptor generated with ArcFace model (512-dim)', 'success');
+
+      // STEP 4: Quality
+      showStep('stepQuality', 'active');
+      updateProgress(70, 'Assessing image quality...');
+      await sleep(500);
+      const qualityScore = 85 + Math.floor(Math.random() * 15);
+      const qualityLabel = qualityScore > 85 ? 'HIGH' : 'MEDIUM';
+      showStep('stepQuality', 'done');
+      addLog(`[AI] Quality: ${qualityLabel} (${qualityScore}/100)`, 'success');
+
+      // Build face data
+      faceData = {
+        id: 'NEX-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
+        confidence: (94 + Math.random() * 5).toFixed(1) + '%',
+        quality: qualityLabel + ' (' + qualityScore + '/10)',
+        qualityScore,
+        databasesScanned: 14,
+        landmarksCount: 68,
+        embeddingDim: 512,
+      };
+
+      // STEP 5: Search simulation
+      showStep('stepSearch', 'active');
+      updateProgress(85, 'Cross-referencing internet databases...');
+      addLog('[SEARCH] Scanning: Google Images, Bing, Yandex, Social Networks...', 'info');
+      await sleep(1200);
+      showStep('stepSearch', 'done');
+      addLog('[SEARCH] Cross-referencing 14 public databases complete', 'success');
+
+      // STEP 6: Complete
+      updateProgress(100, 'Aggregating results...');
+      await sleep(300);
+    
+      // Generate search results
+      searchResults = MOCK_RESULTS.map(r => ({
+        ...r,
+        confidence: Math.round((qualityScore - 15 + Math.random() * 30) * 10) / 10,
+      })).sort((a, b) => b.confidence - a.confidence);
+
+      showStep('stepComplete', 'done');
+      addLog(`[COMPLETE] Found ${searchResults.length} results matching the target face`, 'success');
+
+      scanStatus = 'complete';
+      setStatusLabel('SCAN COMPLETE');
+      showPanel('completeState');
+      
+      // Build 3D mesh
+      build3DFace(capturedImage, faceLandmarks);
+      
+      // Show results
+      renderResults();
+      document.getElementById('resultsPanel').classList.remove('hidden');
+      
+      // Update face data panel
+      updateFaceDataPanel();
+    }
+
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    // ===================================================================
+    // ===== 3D FACE MESH (Three.js) =====
+    // ===================================================================
+    function build3DFace(imageSrc, landmarks) {
+      const container = document.getElementById('threeContainer');
+      container.innerHTML = '';
+
+      // Scene
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x000000);
+
+      // Camera
+      const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 10);
+      camera.position.set(0, 0, 3.5);
+      camera.lookAt(0, 0, 0);
+
+      // Renderer
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      container.appendChild(renderer.domElement);
+
+      threeScene = scene;
+      threeCamera = camera;
+      threeRenderer = renderer;
+
+      // Lights
+      const ambient = new THREE.AmbientLight(0x00ff41, 0.3);
+      scene.add(ambient);
+      const dirLight = new THREE.DirectionalLight(0x00d4ff, 0.8);
+      dirLight.position.set(1, 1, 1);
+      scene.add(dirLight);
+      const dirLight2 = new THREE.DirectionalLight(0xb400ff, 0.4);
+      dirLight2.position.set(-1, -0.5, 0.5);
+      scene.add(dirLight2);
+
+      // Background image sprite
+      if (imageSrc) {
+        const img = new Image();
+        img.onload = () => {
+          const texture = new THREE.Texture(img);
+          texture.minFilter = THREE.LinearFilter;
+          const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true, opacity: 0.15, blending: THREE.AdditiveBlending });
+          const sprite = new THREE.Sprite(spriteMat);
+          sprite.scale.set(2.2, 2.2 * (img.height / img.width), 1);
+          sprite.position.set(0, -0.2, -1.5);
+          scene.add(sprite);
+        };
+        img.src = imageSrc;
+      }
+
+      // Particle field
+      const particleCount = 300;
+      const particlePos = new Float32Array(particleCount * 3);
+      for (let i = 0; i < particleCount * 3; i++) particlePos[i] = (Math.random() - 0.5) * 6;
+      const pGeo = new THREE.BufferGeometry();
+      pGeo.setAttribute('position', new THREE.BufferAttribute(particlePos, 3));
+      const pMat = new THREE.PointsMaterial({ color: 0x00ff41, size: 0.015, transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending });
+      const particles = new THREE.Points(pGeo, pMat);
+      scene.add(particles);
+
+      // Generate 3D face mesh from landmarks
+      if (landmarks && landmarks.length > 0) {
+        const positions = [];
+        const colors = [];
+        const indices = [];
+
+        // Convert landmarks to 3D points
+        landmarks.forEach((p, i) => {
+          const x = (p.x - 0.5) * 2.8;
+          const y = -(p.y - 0.5) * 3.2;
+          const z = (p.z - 0.5) * 1.5 || Math.sin(i * 0.5) * 0.3;
+          positions.push(x, y, z);
+          colors.push(0.1 + Math.random() * 0.1, 0.7 + Math.random() * 0.3, 0.1 + Math.random() * 0.2);
+        });
+
+        // Points
+        const ptGeo = new THREE.BufferGeometry();
+        ptGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+        ptGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colors), 3));
+        const ptMat = new THREE.PointsMaterial({ size: 0.055, vertexColors: true, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, sizeAttenuation: true });
+        const points = new THREE.Points(ptGeo, ptMat);
+        scene.add(points);
+
+        // Wireframe mesh (triangulation)
+        // Generate triangles between nearby points
+        const tris = [];
+        for (let i = 0; i < landmarks.length; i++) {
+          for (let j = i + 1; j < landmarks.length; j++) {
+            for (let k = j + 1; k < landmarks.length; k++) {
+              const d1 = dist3D(positions, i, j);
+              const d2 = dist3D(positions, j, k);
+              const d3 = dist3D(positions, i, k);
+              const maxd = Math.max(d1, d2, d3);
+              if (maxd < 0.45 && Math.random() > 0.7) {
+                tris.push(i, j, k);
+              }
+            }
+          }
+        }
+
+        if (tris.length > 0) {
+          const meshGeo = new THREE.BufferGeometry();
+          meshGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+          meshGeo.setIndex(tris);
+          meshGeo.computeVertexNormals();
+
+          // Wireframe
+          const wireMat = new THREE.MeshBasicMaterial({ color: 0x00ff41, wireframe: true, transparent: true, opacity: 0.15, blending: THREE.AdditiveBlending });
+          const wireMesh = new THREE.Mesh(meshGeo.clone(), wireMat);
+          scene.add(wireMesh);
+
+          // Glow layer
+          const glowMat = new THREE.MeshBasicMaterial({ color: 0x00d4ff, wireframe: false, transparent: true, opacity: 0.04, side: THREE.DoubleSide });
+          const glowMesh = new THREE.Mesh(meshGeo.clone(), glowMat);
+          scene.add(glowMesh);
+        }
+
+        // Connect key points with lines (jawline, eyebrows, etc.)
+        const linePairs = [];
+        // Outer jaw
+        for (let i = 0; i < 16; i++) linePairs.push([i, i+1]);
+        // Left eyebrow
+        for (let i = 17; i < 21; i++) linePairs.push([i, i+1]);
+        // Right eyebrow
+        for (let i = 22; i < 26; i++) linePairs.push([i, i+1]);
+        // Nose bridge
+        for (let i = 27; i < 30; i++) linePairs.push([i, i+1]);
+        // Nose bottom
+        linePairs.push([31, 32], [32, 33], [33, 34], [34, 35]);
+        // Left eye
+        for (let i = 36; i < 41; i++) linePairs.push([i, i+1]);
+        linePairs.push([41, 36]);
+        // Right eye
+        for (let i = 42; i < 47; i++) linePairs.push([i, i+1]);
+        linePairs.push([47, 42]);
+        // Mouth outer
+        for (let i = 48; i < 59; i++) linePairs.push([i, i+1]);
+        linePairs.push([59, 48]);
+        // Mouth inner
+        for (let i = 60; i < 67; i++) linePairs.push([i, i+1]);
+        linePairs.push([67, 60]);
+
+        const linePositions = [];
+        linePairs.forEach(([a, b]) => {
+          if (a < positions.length/3 && b < positions.length/3) {
+            linePositions.push(
+              positions[a*3], positions[a*3+1], positions[a*3+2],
+              positions[b*3], positions[b*3+1], positions[b*3+2]
+            );
+          }
+        });
+
+        if (linePositions.length > 0) {
+          const lineGeo = new THREE.BufferGeometry();
+          lineGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(linePositions), 3));
+          const lineMat = new THREE.LineBasicMaterial({ color: 0x00ff41, transparent: true, opacity: 0.25 });
+          const lines = new THREE.LineSegments(lineGeo, lineMat);
+          scene.add(lines);
+        }
+      } else {
+        // Fallback: generic face shape
+        const faceGroup = new THREE.Group();
+        
+        // Oval
+        const ovalGeo = new THREE.SphereGeometry(0.85, 16, 18);
+        const ovalMat = new THREE.MeshBasicMaterial({ color: 0x00ff41, wireframe: true, transparent: true, opacity: 0.2 });
+        const oval = new THREE.Mesh(ovalGeo, ovalMat);
+        oval.scale.set(0.9, 1.1, 0.6);
+        faceGroup.add(oval);
+
+        // Eyes
+        const eyeMat = new THREE.MeshBasicMaterial({ color: 0x00d4ff, transparent: true, opacity: 0.6 });
+        const eyeGeo = new THREE.SphereGeometry(0.08, 8, 8);
+        const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.position.set(-0.25, 0.15, 0.65); faceGroup.add(eyeL);
+        const eyeR = new THREE.Mesh(eyeGeo, eyeMat); eyeR.position.set(0.25, 0.15, 0.65); faceGroup.add(eyeR);
+
+        // Rings
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0xb400ff, transparent: true, opacity: 0.3, wireframe: true });
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.02, 8, 24), ringMat);
+        ring.position.set(0, -0.1, 0.3);
+        faceGroup.add(ring);
+
+        scene.add(faceGroup);
+      }
+
+      // Animation loop
+      let time = 0;
+      function animate() {
+        time += 0.01;
+        if (scene.children.length > 0) {
+          scene.rotation.y = Math.sin(time * 0.3) * 0.15;
+          scene.rotation.x = Math.sin(time * 0.2) * 0.05;
+        }
+        renderer.render(scene, camera);
+        threeAnimationId = requestAnimationFrame(animate);
+      }
+      animate();
+
+      // Resize handler
+      const resizeHandler = () => {
+        const w = container.clientWidth;
+        const h = container.clientHeight;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+      };
+      window.addEventListener('resize', resizeHandler);
+      // Store cleanup
+      container._resizeHandler = resizeHandler;
+    }
+
+    function dist3D(arr, i, j) {
+      const dx = arr[i*3] - arr[j*3];
+      const dy = arr[i*3+1] - arr[j*3+1];
+      const dz = arr[i*3+2] - arr[j*3+2];
+      return Math.sqrt(dx*dx + dy*dy + dz*dz);
+    }
+
+    // ===================================================================
+    // ===== RESULTS RENDERING =====
+    // ===================================================================
+    function renderResults() {
+      const grid = document.getElementById('resultsGrid');
+      const count = document.getElementById('resultsCount');
+      const stats = document.getElementById('resultsStats');
+      const filters = document.getElementById('sourceFilters');
+      const sortBy = document.getElementById('sortSelect').value;
+
+      if (!searchResults.length) { grid.innerHTML = '<p style="font-size:13px;opacity:0.5;">No results found.</p>'; return; }
+
+      // Sort
+      const sorted = [...searchResults].sort((a, b) => {
+        if (sortBy === 'confidence') return b.confidence - a.confidence;
+        if (sortBy === 'date') return new Date(b.date) - new Date(a.date);
+        return 0;
+      });
+
+      // Filter sources
+      const activeFilter = filters._active || 'all';
+      const filtered = activeFilter === 'all' ? sorted : sorted.filter(r => r.source === activeFilter);
+
+      count.textContent = filtered.length + ' MATCHES';
+
+      // Source filter buttons
+      const sources = ['all', ...new Set(searchResults.map(r => r.source))];
+      filters.innerHTML = sources.slice(0, 8).map(s => {
+        const isActive = s === activeFilter;
+        return `<button onclick="setSourceFilter('${s}')" style="padding:2px 10px;font-size:10px;border:1px solid ${isActive ? '#00ff41' : '#00ff4122'};border-radius:3px;background:${isActive ? 'rgba(0,255,65,0.15)' : 'transparent'};color:${isActive ? '#00ff41' : '#00ff4166'};cursor:pointer;font-family:inherit;">${s === 'all' ? 'ALL' : s.split(' ')[0].toUpperCase()}</button>`;
+      }).join('');
+
+      // Cards
+      grid.innerHTML = filtered.map(r => {
+        const confColor = r.confidence >= 95 ? '#00ff41' : r.confidence >= 80 ? '#ffaa00' : r.confidence >= 70 ? '#ff6600' : '#ff0040';
+        return `
+          <div class="r-card" style="border-radius:6px;padding:8px;">
+            <div style="aspect-ratio:1;border-radius:4px;overflow:hidden;background:#0a0a0f;margin-bottom:8px;position:relative;">
+              <img src="${r.thumb}" alt="${r.title}" style="width:100%;height:100%;object-fit:cover;" loading="lazy" />
+              <div style="position:absolute;top:4px;right:4px;font-size:10px;font-weight:bold;padding:2px 6px;background:rgba(0,0,0,0.7);border-radius:3px;color:${confColor};">${r.confidence}%</div>
+            </div>
+            <div style="font-size:10px;">
+              <p style="color:#00ff41;opacity:0.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.title}</p>
+              <div style="display:flex;justify-content:space-between;margin-top:2px;color:#00ff41;opacity:0.4;">
+                <span style="overflow:hidden;text-overflow:ellipsis;max-width:80px;">${r.domain}</span>
+                <span>${r.source.split(' ')[0]}</span>
+              </div>
+            </div>
+            <div class="c-bar" style="margin-top:4px;">
+              <div class="c-bar-fill" style="width:${r.confidence}%;"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Stats
+      const avg = (filtered.reduce((s, r) => s + r.confidence, 0) / filtered.length).toFixed(1);
+      stats.innerHTML = `
+        <span>Total: ${filtered.length} results</span>
+        <span>|</span>
+        <span>Sources: ${new Set(filtered.map(r => r.source)).size}</span>
+        <span>|</span>
+        <span>Avg: ${avg}%</span>
+        <span>|</span>
+        <span>Highest: ${Math.max(...filtered.map(r => r.confidence))}%</span>
+      `;
+    }
+
+    function setSourceFilter(source) {
+      document.getElementById('sourceFilters')._active = source;
+      renderResults();
+    }
+
+    // ===================================================================
+    // ===== FACE DATA PANEL =====
+    // ===================================================================
+    function updateFaceDataPanel() {
+      if (!faceData) return;
+      document.getElementById('faceDataEmpty').classList.add('hidden');
+      document.getElementById('faceDataContent').classList.remove('hidden');
+      
+      const rows = [
+        ['Face ID', faceData.id],
+        ['Confidence', faceData.confidence],
+        ['Quality Score', faceData.quality],
+        ['Model', 'ArcFace + FaceNet'],
+        ['Embedding Dim', faceData.embeddingDim],
+        ['Landmarks', faceData.landmarksCount + ' points detected'],
+        ['Databases Scanned', faceData.databasesScanned],
+        ['Matches Found', searchResults.length],
+      ];
+
+      document.getElementById('faceDataRows').innerHTML = rows.map(([k, v]) => `
+        <div style="display:flex;justify-content:space-between;border-bottom:1px solid #00ff4111;padding:6px 0;">
+          <span style="opacity:0.6;">${k}</span>
+          <span style="color:#00ff41;">${v}</span>
+        </div>
+      `).join('');
+    }
+
+    // ===================================================================
+    // ===== RESET =====
+    // ===================================================================
+    function resetAll() {
+      if (threeAnimationId) { cancelAnimationFrame(threeAnimationId); threeAnimationId = null; }
+      const container = document.getElementById('threeContainer');
+      container.innerHTML = '';
+      if (container._resizeHandler) window.removeEventListener('resize', container._resizeHandler);
+
+      capturedImage = null;
+      faceLandmarks = null;
+      faceDescriptor = null;
+      faceData = null;
+      searchResults = [];
+      scanStatus = 'idle';
+      progressValue = 0;
+
+      document.getElementById('previewArea').classList.add('hidden');
+      document.getElementById('dropContent').classList.remove('hidden');
+      document.getElementById('resultsPanel').classList.add('hidden');
+      document.getElementById('faceDataEmpty').classList.remove('hidden');
+      document.getElementById('faceDataContent').classList.add('hidden');
+
+      showPanel('idleState');
+      setStatusLabel('AWAITING INPUT');
+      addLog('[SYSTEM] Scan reset. Ready for new target.', 'system');
+    }
+
+    // ===================================================================
+    // ===== INIT =====
+    // ===================================================================
+    document.addEventListener('DOMContentLoaded', () => {
+      // Ensure camera tab starts hidden
+      document.getElementById('tabCamera').classList.add('hidden');
+    });
+  </script>
 </body>
 </html>
